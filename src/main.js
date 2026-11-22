@@ -1,3 +1,4 @@
+import { attachWalletConnect } from './wallet-connect.js';
 import './style.css';
 import { attachPreviewSetup } from './preview-setup.js';
 
@@ -155,6 +156,7 @@ function render() {
   );
 
   attachPreviewSetup();
+  attachWalletConnect();
 
   const messages = document.querySelector('#messages');
   messages.scrollTop = messages.scrollHeight;

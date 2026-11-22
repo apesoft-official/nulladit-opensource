@@ -32,10 +32,10 @@ function canonical(value) {
 
 export async function generateIdentity() {
   const signing = await subtle.generateKey(
-    'Ed25519', true, ['sign', 'verify']
+    'Ed25519', false, ['sign', 'verify']
   );
   const encryption = await subtle.generateKey(
-    'X25519', true, ['deriveBits']
+    'X25519', false, ['deriveBits']
   );
   return { signing, encryption };
 }
