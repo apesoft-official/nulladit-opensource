@@ -1,4 +1,5 @@
 import './style.css';
+import { attachPreviewSetup } from './preview-setup.js';
 
 const conversations = [
   {
@@ -152,6 +153,8 @@ function render() {
   document.querySelector('#compose').addEventListener(
     'submit', (event) => event.preventDefault()
   );
+
+  attachPreviewSetup();
 
   const messages = document.querySelector('#messages');
   messages.scrollTop = messages.scrollHeight;
