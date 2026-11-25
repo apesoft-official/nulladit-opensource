@@ -11,7 +11,7 @@ import {
 } from './crypto.js';
 
 const NODE_URL = (
-  import.meta.env.VITE_NULLADIT_NODE_URL || ''
+  import.meta.env.VITE_NULLADIT_NODE_URL || 'https://node.nulladit.org'
 ).trim();
 
 const CHAIN_ID = 324;
@@ -43,7 +43,7 @@ async function post(path, body) {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
     cache: 'no-store',
-    credentials: 'same-origin',
+    credentials: 'include',
     redirect: 'error',
   });
 
