@@ -1,2 +1,1 @@
-import { renderConsole } from './console.js';
-renderConsole();
+import('./console.js').then(({renderConsole})=>renderConsole()).catch(()=>{const status=document.querySelector('#startup-status');if(status)status.textContent='Application startup failed. Use a current browser over HTTPS and reload. No wallet or message data has been submitted.';else document.querySelector('#app').textContent='NULLADIT startup failed. Reload the application.';});
