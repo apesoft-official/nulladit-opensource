@@ -40,10 +40,11 @@ function endpoint(base, path) {
 }
 
 export class NulladitClient {
-  constructor(baseURL, identity, keys) {
+  constructor(baseURL, identity, keys, sessionToken = null) {
     this.baseURL = baseURL;
     this.identity = identity;
     this.keys = keys;
+    this.sessionToken = sessionToken;
   }
 
   async post(path, data) {
@@ -52,9 +53,9 @@ export class NulladitClient {
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data),
+        body: JSON.stringify(this.sessionToken && ['/contacts', '/submit', '/inbox'].includes(path) ? { ...data, session_token: this.sessionToken } : data),
         cache: 'no-store',
-        credentials: 'omit',
+        credentials: 'same-origin',
         redirect: 'error',
       }
     );
