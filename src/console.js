@@ -1,4 +1,5 @@
 import './console.css';
+import { whitelistView, walletReadsView, bindLocalTools, resetLocalTools } from './local-tools.js';
 import { messengerView, bindMessenger, resetMessenger } from './messenger.js';
 import {
   authenticateWallet,
@@ -42,6 +43,7 @@ const state = {
 
 const nav = [
   ['messages', 'Messages'],
+  ['contacts', 'Whitelist'],
   ['my-node', 'My Node'],
   ['active-nodes', 'Active Nodes'],
   ['wallet', 'Wallet'],
@@ -225,7 +227,7 @@ function walletView() {
 
       <div class="card-grid three">
         <article class="card balance">
-          <span>$NULL22</span><strong>—</strong><small>Not connected</small>
+          <span>$NULL22</span><strong>—</strong><small>See live balances below</small>
         </article>
         <article class="card balance">
           <span>Retirement Bonds</span><strong>—</strong><small>Not connected</small>
@@ -236,6 +238,7 @@ function walletView() {
         </article>
       </div>
 
+      ${walletReadsView(state, escapeHTML)}
       <article class="card notice">
         <h3>Transfer-tax notice</h3>
         <p>
@@ -330,6 +333,7 @@ function settingsView() {
 }
 
 function view() {
+  if (state.tab === 'contacts') return whitelistView(state, escapeHTML);
   if (state.tab === 'messages') return messagesView();
   if (state.tab === 'my-node') return myNodeView();
   if (state.tab === 'active-nodes') return activeNodesView();
@@ -423,6 +427,7 @@ async function clearSession(reason, revoke = true) {
   const setupToken = state.setupToken;
   authGeneration++;
   resetMessenger();
+  resetLocalTools();
   state.setupToken = null;
   state.nameOffer = null;
   state.showAccountSetup = false;
@@ -582,11 +587,12 @@ async function connectNodeSession() {
 }
 
 window.addEventListener('offline', () => {
-  clearSession('Internet connection lost. Sign in again.', false);
+  authGeneration++; resetMessenger(); state.session = null; state.identity = null; state.sessionExpires = null; state.setupToken = null; state.showAccountSetup = false; state.needsRegistration = false; state.authBusy = false; state.walletError = 'Internet offline. Local tools remain available.'; if (sessionExpiryTimer) clearTimeout(sessionExpiryTimer); renderConsole();
 });
 
 
 function bind() {
+  bindLocalTools(state, renderConsole);
   if (state.session) bindMessenger(state, renderConsole);
   document.querySelector('#connect-node')?.addEventListener('click', connectNodeSession);
   document.querySelector('#logout')?.addEventListener('click', () => clearSession('Signed out.'));
