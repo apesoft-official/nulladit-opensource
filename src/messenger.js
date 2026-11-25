@@ -93,7 +93,7 @@ export function bindMessenger(state, render) {
     if(active()){history=[...history.filter(m=>m.mine),...incoming];feedback='Inbox refreshed';}
   }));
   on('#gateway-health','click',()=>task(async(api,active)=>{
-    const response=await fetch(new URL('/health',nodeBase()),{cache:'no-store',redirect:'error',credentials:'same-origin',signal:AbortSignal.timeout(10000)});
+    const response=await fetch(new URL('/health',nodeBase()),{cache:'no-store',redirect:'error',credentials:'include',signal:AbortSignal.timeout(10000)});
     const data=await response.json();
     if(!response.ok||data.service!=='NULLADIT'||data.status!=='experimental-local-preview')throw new Error('Preview gateway not confirmed');
     if(active())health='Preview gateway reachable';
