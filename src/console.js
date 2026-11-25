@@ -85,7 +85,10 @@ function statusPill(text, tone = 'safe') {
   return `<span class="status-pill ${tone}">${escapeHTML(text)}</span>`;
 }
 
-function messagesView() { return messengerView(state, escapeHTML); }
+function messagesView() {
+  if (state.session) return messengerView(state, escapeHTML);
+  return '<div class="content-page"><h2>Messages</h2><article class="card"><h3>Messaging unavailable</h3><p>Connect to the node and authenticate your account to access encrypted conversations. No messages are loaded in local mode.</p></article></div>';
+}
 
 function myNodeView() {
   return `
@@ -212,7 +215,7 @@ function walletView() {
                 'Connect the wallet that will own this account.'
               )}
         </p>
-        <button id="connect-wallet" ${state.session ? "disabled" : ""}>
+        <button id="connect-wallet" ${state.wallet ? "disabled" : ""}>
           ${state.wallet ? 'Wallet connected' : 'Connect wallet'}
         </button>
         <small>
@@ -294,7 +297,7 @@ function settingsView() {
       <article class="card name-card">
         <div>
           <p class="eyebrow">Permanent network name</p>
-          <h3>${escapeHTML(state.identity)}</h3>
+          <h3>${escapeHTML(state.identity || 'Not authenticated')}</h3>
           <p>
             Generate another name until you find one you like.
             Once wallet-signed and locked, it can never be changed,
@@ -308,7 +311,7 @@ function settingsView() {
           <button id="lock-name" disabled>Lock with wallet signature</button>
         </div>
         <small id="name-feedback">
-          Wallet-bound preview account
+          ${state.session ? 'Wallet-bound preview account' : 'Network account not verified'}
         </small>
       </article>
 
@@ -384,7 +387,7 @@ function authenticationGate() {
     : state.needsRegistration
       ? 'Wallet verified. This browser needs account setup.'
       : state.walletError ||
-        'Switch to ZKsync Era, connect your wallet, and sign in once.';
+        'Connect your ZKsync Era wallet to open the console.';
 
   return `
     <main class="auth-page">
@@ -393,7 +396,7 @@ function authenticationGate() {
         <p class="eyebrow">Inviolable conversations</p>
         <h1>NULLADIT</h1>
         <p class="auth-copy">
-          Your wallet establishes the account session.
+          Connect your wallet to explore the local console. Network authentication is separate.
           No transaction or payment is requested to sign in.
         </p>
         <button id="connect-and-authenticate"
@@ -513,9 +516,35 @@ async function connectBrowserWallet() {
       throw new Error('Wallet did not provide a valid address');
     }
 
+    if (attempt !== authGeneration) return;
     state.wallet = wallet;
     bindProviderEvents(provider);
+    state.walletError = '';
 
+
+  } catch (error) {
+    if (attempt !== authGeneration) return;
+    state.wallet = null;
+    state.needsRegistration = false;
+    state.showAccountSetup = false;
+    state.walletError =
+      error?.code === 4001
+        ? 'Wallet request cancelled.'
+        : error?.message || 'Wallet authentication failed.';
+  } finally {
+    if (attempt === authGeneration) { state.authBusy = false; renderConsole(); }
+  }
+}
+
+async function connectNodeSession() {
+  if (!state.wallet || state.session || state.authBusy) return;
+  const attempt = ++authGeneration;
+  const wallet = state.wallet;
+  const provider = window.ethereum;
+  state.authBusy = true;
+  state.walletError = '';
+  renderConsole();
+  try {
     const result = await authenticateWallet(provider, wallet);
     if (attempt !== authGeneration) { if (result.token) await revokeSession(result.token); if (result.setupToken) await revokeSetupSession(result.setupToken); return; }
 
@@ -540,13 +569,13 @@ async function connectBrowserWallet() {
 
   } catch (error) {
     if (attempt !== authGeneration) return;
-    state.wallet = null;
+    const setupToken = state.setupToken;
+    state.setupToken = null;
+    state.nameOffer = null;
     state.needsRegistration = false;
     state.showAccountSetup = false;
-    state.walletError =
-      error?.code === 4001
-        ? 'Wallet request cancelled.'
-        : error?.message || 'Wallet authentication failed.';
+    state.walletError = 'Node authentication unavailable: ' + (error?.message || 'Connection failed');
+    if (setupToken) void revokeSetupSession(setupToken);
   } finally {
     if (attempt === authGeneration) { state.authBusy = false; renderConsole(); }
   }
@@ -558,7 +587,8 @@ window.addEventListener('offline', () => {
 
 
 function bind() {
-  bindMessenger(state, renderConsole);
+  if (state.session) bindMessenger(state, renderConsole);
+  document.querySelector('#connect-node')?.addEventListener('click', connectNodeSession);
   document.querySelector('#logout')?.addEventListener('click', () => clearSession('Signed out.'));
   document.querySelector('#connect-wallet')
     ?.addEventListener('click', connectBrowserWallet);
@@ -607,7 +637,7 @@ function bind() {
 }
 
 export function renderConsole() {
-  if (!state.session) {
+  if (!state.wallet || state.showAccountSetup) {
     document.querySelector('#app').innerHTML = authenticationGate();
     document.querySelector('#connect-and-authenticate')
       ?.addEventListener('click', connectBrowserWallet);
@@ -660,6 +690,7 @@ export function renderConsole() {
               ? 'Permanent-name signature cancelled.'
               : error?.message || 'Account setup failed.';
           state.showAccountSetup = false;
+          state.needsRegistration = false;
           renderConsole();
         }
       });
@@ -693,9 +724,10 @@ export function renderConsole() {
 
       <main class="console-main">
         <div class="top-strip">
-          <span>Experimental installer build</span>
+          <span>${state.session ? 'Network session active' : 'Local wallet mode · network not authenticated'}</span>
           <strong>Do not use for sensitive communications yet</strong>
         </div>
+        ${!state.session ? `<section class="content-page"><article class="card"><h3>Local wallet mode</h3><p>All tabs are available. Network actions require separate server authentication.</p><button id="connect-node" ${state.authBusy ? 'disabled' : ''}>${state.authBusy ? 'Connecting…' : 'Connect to messaging node'}</button><p role="status">${escapeHTML(state.walletError)}</p></article></section>` : ''}
         ${view()}
       </main>
     </div>
