@@ -55,7 +55,7 @@ export class NulladitClient {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(this.sessionToken && ['/contacts', '/submit', '/inbox'].includes(path) ? { ...data, session_token: this.sessionToken } : data),
         cache: 'no-store',
-        credentials: 'same-origin',
+        credentials: 'include',
         redirect: 'error',
       }
     );
