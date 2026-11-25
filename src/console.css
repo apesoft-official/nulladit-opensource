@@ -730,3 +730,8 @@ h3 {
 .bubble {overflow-wrap:anywhere;white-space:pre-wrap;}
 .chat-body .message:not(.mine) {margin:16px 0;}
 .chat-body .message:not(.mine) .bubble {background:var(--sage);color:var(--ink);width:fit-content;}
+
+.logo-mark { background: transparent; border: 0; border-radius: 0; box-shadow: none; width: 52px; height: 52px; }
+.logo-mark::after { display: none; }
+.logo-mark img { inset: 0; width: 100%; height: 100%; object-fit: contain; image-rendering: pixelated; }
+.auth-card .logo-mark { width: 112px; height: 112px; flex: none; }

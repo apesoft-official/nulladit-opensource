@@ -76,7 +76,7 @@ function escapeHTML(value) {
 function logo() {
   return `
     <div class="logo-mark" aria-label="NULLADIT loon speech-bubble logo">
-      <span aria-hidden="true">🍁</span>
+      <img src="/nulladit-loon.png" alt="NULLADIT loon logo">
     </div>
   `;
 }
