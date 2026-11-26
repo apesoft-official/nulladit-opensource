@@ -22,8 +22,6 @@ const secondWords = [
   'Trail', 'Valley', 'Wolf', 'Woods', 'Yukon'
 ];
 
-const APESOFT_PREVIEW_WALLET = '0x36d65a0c504ff318be9ee6c04531d2ebc8217906';
-function showCorporateDashboard() { return state.wallet?.toLowerCase() === APESOFT_PREVIEW_WALLET; }
 
 const state = {
   tab: 'messages',
@@ -52,7 +50,6 @@ const nav = [
   ['wallet', 'Wallet'],
   ['updates', 'Updates'],
   ['governance', 'PoS Proposals & Voting'],
-  ['deployments', 'Deployments'],
   ['settings', 'Settings'],
 ];
 
@@ -292,20 +289,6 @@ function updatesView() {
   `;
 }
 
-function supportInboxView() {
-  if (!showCorporateDashboard()) return settingsView();
-  return `<div class="content-page"><div class="page-title"><div><p class="eyebrow">Apesoft Canada · Operator support</p><h2>Support Inbox</h2></div>${statusPill('Service not connected','warning')}</div><article class="card"><h3>Operator support conversations</h3><p>Verified working node operators may contact Apesoft through this separate channel without reciprocal whitelisting. Private conversations continue to require reciprocal contact approval.</p><p>No live support inbox is connected. No conversations are loaded or stored here.</p><button disabled>Refresh support inbox</button></article></div>`;
-}
-
-function corporateView() {
-  if (!showCorporateDashboard()) return settingsView();
-  return `<div class="content-page"><div class="page-title"><div><p class="eyebrow">Apesoft Canada · Corporate authority</p><h2>Corporate Dashboard</h2></div>${statusPill('Read-only preview','warning')}</div>
-  <article class="card"><h3>Connected corporate wallet</h3><p class="wallet-address">${escapeHTML(state.wallet)}</p><small>Matches the recorded founding wallet. Current on-chain authority has not been verified. Visibility is not authorization.</small></article>
-  <div class="card-grid two"><article class="card"><h3>Proof-of-Service governance</h3><p>One-third corporate voting weight. Apesoft may abstain. Company nodes and holdings are excluded from independent voting.</p><button data-tab="governance">Open proposals &amp; voting</button></article><article class="card"><h3>Contract deployment</h3><p>Recorded deployments and remaining integration gates.</p><button data-tab="deployments">Open deployments</button></article></div>
-  <article class="card"><h3>Representative administration</h3><p>Individual elections for ten permanent seats; emergency suspension only, permanent removal by governance vote.</p><div class="button-row"><button disabled>Open seat election</button><button disabled>Emergency suspension</button></div></article>
-  <article class="card warning-card"><h3>Mining release gate</h3><p>Mining activation is not authorized. Live administrative transactions require verified contracts, current authority and explicit wallet approval.</p><button disabled>Activate mining</button></article></div>`;
-}
-
 function governanceView() {
   return `<div class="content-page">
     <div class="page-title"><div><p class="eyebrow">NULL22 · Network governance</p><h2>Proof-of-Service Proposals &amp; Voting</h2></div>${statusPill('Preview · voting unavailable','warning')}</div>
@@ -316,8 +299,7 @@ function governanceView() {
       <article class="card balance"><span>Independent NULL22 holders</span><strong>⅓</strong><small>Proportional holdings · 30-day historical snapshot</small></article>
     </div>
     <article class="card"><h3>Voting rules</h3><p>Two-thirds approval of active voting weight; 50% participation in each independent constituency. When Apesoft abstains or does not vote, operators and token holders each carry half of active voting weight. Apesoft-controlled nodes and holdings cannot vote in either independent bloc.</p><p>30-day ballot period · seven-day execution delay · seven-day historical proof migration.</p></article>
-    <article class="card"><h3>Submit upgrade proposal</h3><p>Reserved for the authenticated corporate authority once the governance contracts and proposal registry are verified.</p><label for="proposal-version">Proposed version</label><input id="proposal-version" disabled placeholder="Unavailable in preview"><label for="proposal-specification">Specification fingerprint</label><input id="proposal-specification" disabled placeholder="Verified contract integration required"><div class="button-row"><button disabled>Create proposal</button></div></article>
-    <article class="card"><h3>Cast your vote</h3><p>Wallet connection does not establish governance eligibility. A verified election, constituency and snapshot proof are required.</p><div class="button-row"><button disabled>Vote yes</button><button class="secondary" disabled>Vote no</button><button class="secondary" disabled>Corporate abstention</button></div><small>No vote will be stored, signed or submitted in preview mode.</small></article>
+    <article class="card"><h3>Cast your vote</h3><p>Wallet connection does not establish governance eligibility. A verified election, constituency and snapshot proof are required.</p><div class="button-row"><button disabled>Vote yes</button><button class="secondary" disabled>Vote no</button></div><small>No vote will be stored, signed or submitted in preview mode.</small></article>
     <article class="card warning-card"><h3>Scope and operator choice</h3><p>Proof-standard proposals do not confer adjudication or confiscation powers. Operators choose whether to install updates; obsolete standards may cease to qualify for new rewards. Previously authorized rewards remain protected.</p></article>
   </div>`;
 }
@@ -367,19 +349,7 @@ function settingsView() {
   `;
 }
 
-function deploymentsView() {
-  const recorded = [["NULL22 Authority","0xEDbE3eF68315F9De399Cb77f0243C5a20e11305C"],["NULL22 Controller","0x4bd6776a16cC838D4A92C16FB3B0bc32330E3427"],["NULL22 Permanent","0x332a8e2CeE5398D52616fCABd87966010C5A7a82"],["NVSP Registration Pricing","0xdEbbc5932516c6FC083b2F2B8aAd823402f148B5"],["NVSP Mining Registration V3","0x4A1e5037397837fFD7Bd59865A3a0dCD06386E15"],["NVSP Bond Settlement Adapter V3","0x78E84F3649976fc418a9aD53Bb0e4063AfB47af2"],["NVSP Epoch Anchor","0xaC4179803BeDbEe923BDF4b82eC147cF82f7B9D8"],["NVSP Adjudication Governance","0x978eD18f0a017b06d4F0C02EB11D4C540D3c5c06"]];
-  const pending = ["Permanent adjudication seat 1 (initial panel)","Permanent adjudication seat 2 (initial panel)","Permanent adjudication seat 3 (initial panel)","Permanent adjudication seat 4 (initial panel)","Permanent adjudication seat 5 (initial panel)","Permanent adjudication seat 6 (appeal panel)","Permanent adjudication seat 7 (appeal panel)","Permanent adjudication seat 8 (appeal panel)","Permanent adjudication seat 9 (appeal panel)","Permanent adjudication seat 10 (appeal panel)","Security Bond V4 (earned 50 NULL22)","Proof-of-Service Upgrade Governor","Upgrade-compatible settlement integration (design pending)"];
-  return `<div class="content-page local-tools"><div class="page-title"><div><p class="eyebrow">ZKsync Era · Chain 324</p><h2>Contract deployments</h2></div>${statusPill('Mining not authorized', 'warning')}</div>
-  <article class="card"><h3>Recorded mainnet deployments</h3><p>Addresses from the project deployment records. This is a read-only inventory, not a live chain attestation or independent security audit. Configuration and finality require verification.</p>
-  ${recorded.map(([name,address])=>`<div class="contact-row"><strong>${escapeHTML(name)}</strong><span class="wallet-address">${address}</span><a href="https://explorer.zksync.io/address/${address}" target="_blank" rel="noopener noreferrer">View on ZKsync explorer</a></div>`).join('')}</article>
-  <article class="card"><h3>Outstanding deployment and integration work</h3><p>Apesoft Canada initially controls all ten seats. Proof upgrades must not confer adjudication or confiscation powers. The existing adapter has an immutable proof authorizer; replacement integration requires design and testing.</p>${pending.map(name=>`<div class="contact-row"><strong>${escapeHTML(name)}</strong><small>Pending — no deployment receipt recorded</small></div>`).join('')}</article>
-  <article class="card"><h3>Mining release gate</h3><p>Deploy, verify receipts and bytecode, configure permissions and timelocks, test reward and bond accounting, complete independent review, then obtain explicit activation approval. No transaction can be submitted from this page.</p></article></div>`;
-}
-
 function view() {
-  if (state.tab === 'corporate') return corporateView();
-  if (state.tab === 'support-inbox') return supportInboxView();
   if (state.tab === 'contacts') return whitelistView(state, escapeHTML);
   if (state.tab === 'messages') return messagesView();
   if (state.tab === 'my-node') return myNodeView();
@@ -387,7 +357,6 @@ function view() {
   if (state.tab === 'wallet') return walletView();
   if (state.tab === 'updates') return updatesView();
   if (state.tab === 'governance') return governanceView();
-  if (state.tab === 'deployments') return deploymentsView();
   return settingsView();
 }
 
@@ -486,7 +455,6 @@ async function clearSession(reason, revoke = true) {
   state.identity = null;
   state.sessionExpires = null;
   state.wallet = null;
-  if (['corporate','support-inbox'].includes(state.tab)) state.tab = 'messages';
   state.walletError = reason || 'Session ended.';
   state.authBusy = false;
 
@@ -759,7 +727,7 @@ export function renderConsole() {
         </div>
 
         <nav>
-          ${[...nav, ...(showCorporateDashboard() ? [['corporate', 'Apesoft Dashboard'], ['support-inbox', 'Support Inbox']] : [])].map(([id, label]) => `
+          ${nav.map(([id, label]) => `
             <button data-tab="${id}"
               class="${state.tab === id ? 'active' : ''}" aria-current="${state.tab === id ? 'page' : 'false'}">
               <span>${escapeHTML(label)}</span>
