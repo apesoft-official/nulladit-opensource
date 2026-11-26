@@ -13,10 +13,11 @@ const requests=[];
 page.on('requestfailed',r=>console.error('Request failed',new URL(r.url()).pathname,r.failure()?.errorText));
 page.on('console',m=>{if(m.type()==='error')console.error('Browser error:',m.text());});
 let offers=0, signed=0, approved=false, sent=0;
+const unlockMessages=[];
 const nonce='a'.repeat(64), token='b'.repeat(64), session='c'.repeat(64);
 await page.exposeFunction('testSign',async(message,address)=>{
   assert.equal(address.toLowerCase(),wallet.address.toLowerCase());
-  signed++; return wallet.signMessage(message);
+  signed++; if(message.startsWith('NULLADIT Wallet Access\n')) unlockMessages.push(message); return wallet.signMessage(message);
 });
 await page.addInitScript(({address,other,kind})=>{
   const events={}; let account=address, chain='0x1';
@@ -62,7 +63,15 @@ try{
   await page.goto('http://127.0.0.1:4173');
   await page.locator('#wallet-choice').selectOption(kind);
   await page.locator('#connect-and-authenticate').click();
+  await page.locator('[data-tab=contacts]').waitFor();
+  assert.equal(signed,1);
+  await page.reload();
+  await page.locator('#wallet-choice').selectOption(kind);
+  await page.locator('#connect-and-authenticate').click();
   await page.locator('[data-tab=contacts]').click();
+  assert.equal(signed,2);
+  assert.equal(unlockMessages.length,2);
+  assert.notEqual(unlockMessages[0],unlockMessages[1]);
   await page.getByLabel('Wallet to whitelist').fill(other.address);
   await page.getByRole('button',{name:'Add wallet'}).click();
   await page.getByText('Wallet added locally',{exact:true}).waitFor();
@@ -101,7 +110,7 @@ try{
   await page.getByText('Preview gateway reachable',{exact:true}).waitFor();
   await page.locator('#withdraw-contact').click();
   await page.getByText('Approval withdrawn',{exact:true}).waitFor();
-  assert.equal(approved,false);assert.equal(sent,1);assert.equal(signed,2);
+  assert.equal(approved,false);assert.equal(sent,1);assert.equal(signed,4);
   await page.evaluate(()=>window.testAccountChange());
   await page.locator('#connect-and-authenticate').waitFor();
   assert.deepEqual(errors,[]);
