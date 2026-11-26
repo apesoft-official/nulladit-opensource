@@ -447,6 +447,7 @@ async function clearSession(reason, revoke = true) {
   resetMessenger();
   resetLocalTools();
   state.setupToken = null;
+  state.setupExpires = null;
   state.nameOffer = null;
   state.showAccountSetup = false;
   state.needsRegistration = false;
@@ -455,6 +456,7 @@ async function clearSession(reason, revoke = true) {
   state.identity = null;
   state.sessionExpires = null;
   state.wallet = null;
+  state.tab = 'messages';
   state.walletError = reason || 'Session ended.';
   state.authBusy = false;
 
@@ -665,6 +667,9 @@ export function renderConsole() {
       ?.addEventListener('click', async () => {
         try {
           const attempt = authGeneration;
+          const button = document.querySelector('#generate-setup-name');
+          button.disabled = true;
+          document.querySelector('#lock-setup-name').disabled = true;
           const offer = await generateNameOffer(state.setupToken);
           if (attempt !== authGeneration) return;
           state.candidate = offer.network_name;
@@ -683,8 +688,9 @@ export function renderConsole() {
         button.disabled = true;
         button.textContent = 'Check your wallet…';
 
+        document.querySelector('#generate-setup-name').disabled = true;
+        const attempt = authGeneration;
         try {
-          const attempt = authGeneration;
           const result = await registerTesterAccount({
             provider: window.ethereum,
             wallet: state.wallet,
@@ -704,6 +710,7 @@ export function renderConsole() {
           scheduleSessionExpiry(result.session.expires);
           renderConsole();
         } catch (error) {
+          if (attempt !== authGeneration) return;
           state.walletError =
             error?.code === 4001
               ? 'Permanent-name signature cancelled.'

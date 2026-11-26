@@ -216,6 +216,9 @@ export async function registerTesterAccount({
     throw new Error('Valid setup and name offer required');
   }
 
+  const chain = await provider.request({method:'eth_chainId'});
+  const accounts = await provider.request({method:'eth_accounts'});
+  if (Number.parseInt(chain,16)!==CHAIN_ID || !accounts.some(a=>a.toLowerCase()===wallet.toLowerCase())) throw new Error('Connected wallet changed');
   const identity = identityForName(networkName);
   let record = await loadIdentity(identity);
 
@@ -262,10 +265,10 @@ export async function registerTesterAccount({
     result?.registered !== true ||
     result.identity !== identity ||
     result.network_name !== networkName ||
-    result.wallet.toLowerCase() !== wallet.toLowerCase() ||
+    !ADDRESS.test(result.wallet || '') || result.wallet.toLowerCase() !== wallet.toLowerCase() ||
     result.fee_waived !== true ||
     !NONCE.test(result?.session?.token || '') ||
-    !Number.isInteger(result?.session?.expires)
+    (!Number.isInteger(result?.session?.expires) || result.session.expires <= Math.floor(Date.now()/1000))
   ) {
     throw new Error('Account registration was not confirmed');
   }
