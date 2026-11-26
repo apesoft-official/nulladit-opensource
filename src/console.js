@@ -48,6 +48,7 @@ const nav = [
   ['active-nodes', 'Active Nodes'],
   ['wallet', 'Wallet'],
   ['updates', 'Updates'],
+  ['governance', 'PoS Proposals & Voting'],
   ['deployments', 'Deployments'],
   ['settings', 'Settings'],
 ];
@@ -267,7 +268,7 @@ function updatesView() {
         <h3>Update availability not verified</h3>
         <p>
           A future proposal will show its version, proof-of-service scope,
-          panel approval record, source fingerprint, and any
+          three-constituency approval record, source fingerprint, and any
           government-mandated or access-affecting flag.
         </p>
         <div class="button-row">
@@ -286,6 +287,22 @@ function updatesView() {
     </div>
 
   `;
+}
+
+function governanceView() {
+  return `<div class="content-page">
+    <div class="page-title"><div><p class="eyebrow">NULL22 · Network governance</p><h2>Proof-of-Service Proposals &amp; Voting</h2></div>${statusPill('Preview · voting unavailable','warning')}</div>
+    <article class="card"><h3>Proposal registry</h3><p>No live proposal registry is connected. Proposal availability, eligibility and results cannot yet be verified. No ballots or signatures are collected by this preview.</p><small>Only Apesoft Canada may propose proof-standard upgrades.</small></article>
+    <div class="card-grid three">
+      <article class="card balance"><span>Apesoft Canada</span><strong>⅓</strong><small>Corporate vote only; optional abstention</small></article>
+      <article class="card balance"><span>Independent operators</span><strong>⅓</strong><small>One vote per verified operator · 90 days of service</small></article>
+      <article class="card balance"><span>Independent NULL22 holders</span><strong>⅓</strong><small>Proportional holdings · 30-day historical snapshot</small></article>
+    </div>
+    <article class="card"><h3>Voting rules</h3><p>Two-thirds approval of active voting weight; 50% participation in each independent constituency. When Apesoft abstains or does not vote, operators and token holders each carry half of active voting weight. Apesoft-controlled nodes and holdings cannot vote in either independent bloc.</p><p>30-day ballot period · seven-day execution delay · seven-day historical proof migration.</p></article>
+    <article class="card"><h3>Submit upgrade proposal</h3><p>Reserved for the authenticated corporate authority once the governance contracts and proposal registry are verified.</p><label for="proposal-version">Proposed version</label><input id="proposal-version" disabled placeholder="Unavailable in preview"><label for="proposal-specification">Specification fingerprint</label><input id="proposal-specification" disabled placeholder="Verified contract integration required"><div class="button-row"><button disabled>Create proposal</button></div></article>
+    <article class="card"><h3>Cast your vote</h3><p>Wallet connection does not establish governance eligibility. A verified election, constituency and snapshot proof are required.</p><div class="button-row"><button disabled>Vote yes</button><button class="secondary" disabled>Vote no</button><button class="secondary" disabled>Corporate abstention</button></div><small>No vote will be stored, signed or submitted in preview mode.</small></article>
+    <article class="card warning-card"><h3>Scope and operator choice</h3><p>Proof-standard proposals do not confer adjudication or confiscation powers. Operators choose whether to install updates; obsolete standards may cease to qualify for new rewards. Previously authorized rewards remain protected.</p></article>
+  </div>`;
 }
 
 function settingsView() {
@@ -350,6 +367,7 @@ function view() {
   if (state.tab === 'active-nodes') return activeNodesView();
   if (state.tab === 'wallet') return walletView();
   if (state.tab === 'updates') return updatesView();
+  if (state.tab === 'governance') return governanceView();
   if (state.tab === 'deployments') return deploymentsView();
   return settingsView();
 }
