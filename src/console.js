@@ -40,6 +40,8 @@ const state = {
   setupExpires: null,
   nameOffer: null,
   showAccountSetup: false,
+  localHealth: null,
+  localHealthBusy: false,
 };
 
 const nav = [
@@ -102,18 +104,17 @@ function myNodeView() {
           <p class="eyebrow">Operator console</p>
           <h2>My Node</h2>
         </div>
-        ${statusPill('Not installed', 'neutral')}
+        ${statusPill(state.localHealth ? 'Local runtime reachable' : 'Not verified', state.localHealth ? 'safe' : 'neutral')}
       </div>
 
       <div class="card-grid two">
         <article class="card">
           <h3>Node status</h3>
-          <div class="metric">Offline</div>
+          <div class="metric">${state.localHealth ? "Online locally" : "Not checked"}</div>
           <p>
-            The installer has not started a node runtime in this
-            Codespaces preview.
+            ${state.localHealth ? 'Local node: ' + escapeHTML(state.localHealth) : 'Check the installed local runtime. Internet relay enrollment is not yet available.'}
           </p>
-          <button disabled>Start node</button>
+          <button id="local-health" ${state.localHealthBusy?'disabled':''}>Check local node</button>
           <small>Mining is unavailable and remains paused.</small>
         </article>
 
@@ -612,6 +613,19 @@ window.addEventListener('offline', () => {
 
 
 function bind() {
+  document.querySelector('#local-health')?.addEventListener('click',async()=>{
+    if(state.localHealthBusy)return;
+    state.localHealthBusy=true;state.localHealth=null;
+    const attempt=authGeneration;
+    renderConsole();
+    try {
+      if(location.protocol!=='http:' || location.hostname!=='127.0.0.1')throw Error('Open the installed dashboard from the local node');
+      const response=await fetch('/health',{cache:'no-store',redirect:'error',signal:AbortSignal.timeout(3000)});
+      const data=await response.json();
+      if(response.ok&&data.service==='NULLADIT'&&data.status==='local'&&/^[0-9a-f]{64}$/.test(data.node)&&attempt===authGeneration)state.localHealth=data.node;
+    }catch{}
+    finally{state.localHealthBusy=false;renderConsole();}
+  });
   bindLocalTools(state, renderConsole);
   if (state.session) bindMessenger(state, renderConsole);
   document.querySelector('#connect-node')?.addEventListener('click', connectNodeSession);
