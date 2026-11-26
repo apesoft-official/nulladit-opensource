@@ -22,6 +22,9 @@ const secondWords = [
   'Trail', 'Valley', 'Wolf', 'Woods', 'Yukon'
 ];
 
+const APESOFT_PREVIEW_WALLET = '0x36d65a0c504ff318be9ee6c04531d2ebc8217906';
+function showCorporateDashboard() { return state.wallet?.toLowerCase() === APESOFT_PREVIEW_WALLET; }
+
 const state = {
   tab: 'messages',
   candidate: 'Cedar Loon 4827',
@@ -289,6 +292,15 @@ function updatesView() {
   `;
 }
 
+function corporateView() {
+  if (!showCorporateDashboard()) return settingsView();
+  return `<div class="content-page"><div class="page-title"><div><p class="eyebrow">Apesoft Canada · Corporate authority</p><h2>Corporate Dashboard</h2></div>${statusPill('Read-only preview','warning')}</div>
+  <article class="card"><h3>Connected corporate wallet</h3><p class="wallet-address">${escapeHTML(state.wallet)}</p><small>Matches the recorded founding wallet. Current on-chain authority has not been verified. Visibility is not authorization.</small></article>
+  <div class="card-grid two"><article class="card"><h3>Proof-of-Service governance</h3><p>One-third corporate voting weight. Apesoft may abstain. Company nodes and holdings are excluded from independent voting.</p><button data-tab="governance">Open proposals &amp; voting</button></article><article class="card"><h3>Contract deployment</h3><p>Recorded deployments and remaining integration gates.</p><button data-tab="deployments">Open deployments</button></article></div>
+  <article class="card"><h3>Representative administration</h3><p>Individual elections for ten permanent seats; emergency suspension only, permanent removal by governance vote.</p><div class="button-row"><button disabled>Open seat election</button><button disabled>Emergency suspension</button></div></article>
+  <article class="card warning-card"><h3>Mining release gate</h3><p>Mining activation is not authorized. Live administrative transactions require verified contracts, current authority and explicit wallet approval.</p><button disabled>Activate mining</button></article></div>`;
+}
+
 function governanceView() {
   return `<div class="content-page">
     <div class="page-title"><div><p class="eyebrow">NULL22 · Network governance</p><h2>Proof-of-Service Proposals &amp; Voting</h2></div>${statusPill('Preview · voting unavailable','warning')}</div>
@@ -361,6 +373,7 @@ function deploymentsView() {
 }
 
 function view() {
+  if (state.tab === 'corporate') return corporateView();
   if (state.tab === 'contacts') return whitelistView(state, escapeHTML);
   if (state.tab === 'messages') return messagesView();
   if (state.tab === 'my-node') return myNodeView();
@@ -467,6 +480,7 @@ async function clearSession(reason, revoke = true) {
   state.identity = null;
   state.sessionExpires = null;
   state.wallet = null;
+  if (state.tab === 'corporate') state.tab = 'messages';
   state.walletError = reason || 'Session ended.';
   state.authBusy = false;
 
@@ -744,7 +758,7 @@ export function renderConsole() {
         </div>
 
         <nav>
-          ${nav.map(([id, label]) => `
+          ${[...nav, ...(showCorporateDashboard() ? [['corporate', 'Apesoft Dashboard']] : [])].map(([id, label]) => `
             <button data-tab="${id}"
               class="${state.tab === id ? 'active' : ''}" aria-current="${state.tab === id ? 'page' : 'false'}">
               <span>${escapeHTML(label)}</span>
