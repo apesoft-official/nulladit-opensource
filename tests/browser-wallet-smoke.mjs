@@ -77,10 +77,14 @@ try{
   await page.getByRole('heading',{name:'Cedar Loon 4829'}).waitFor();
   await page.locator('#lock-setup-name').click();
   await page.locator('#show-key').click();
+  await page.locator('.contact-panel p').filter({hasText:/^[A-Za-z0-9+/]{43}=$/}).waitFor();
   const key=await page.evaluate(async()=>{const k=await crypto.subtle.generateKey({name:'X25519'},true,['deriveBits']);return btoa(String.fromCharCode(...new Uint8Array(await crypto.subtle.exportKey('raw',k.publicKey))));});
   await page.getByLabel('Contact account').fill('test-recipient');
   await page.getByLabel('Verified public encryption key').fill(key);
   await page.getByLabel('I verified this key independently').check();
+  assert.equal(await page.getByLabel('Contact account').inputValue(),'test-recipient');
+  assert.equal(await page.getByLabel('Verified public encryption key').inputValue(),key);
+  assert.equal(await page.getByLabel('I verified this key independently').isChecked(),true);
   await page.getByRole('button',{name:'Approve contact'}).click();
   await page.getByText('Approval accepted. Your contact must also approve you.').waitFor();
   await page.getByLabel('Message',{exact:true}).fill('private smoke message');
