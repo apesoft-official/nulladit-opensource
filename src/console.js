@@ -123,11 +123,11 @@ function myNodeView() {
         <article class="card">
           <h3>Operator support</h3>
           <p>
-            Message <strong>apesoft.eth</strong> for setup assistance,
+            Verified working node operators may contact <strong>apesoft.eth</strong> through dedicated support for setup assistance,
             a support ticket, or to report malicious wallet activity
             observed through your node.
           </p>
-          <button data-action="support">Open support</button>
+          <button disabled>Open operator support</button><small>Working-node eligibility verification and encrypted support transport are not connected yet. Private chat permissions are unchanged.</small>
           <small>
             Reports never automatically blacklist or punish a wallet.
           </small>
@@ -292,6 +292,11 @@ function updatesView() {
   `;
 }
 
+function supportInboxView() {
+  if (!showCorporateDashboard()) return settingsView();
+  return `<div class="content-page"><div class="page-title"><div><p class="eyebrow">Apesoft Canada · Operator support</p><h2>Support Inbox</h2></div>${statusPill('Service not connected','warning')}</div><article class="card"><h3>Operator support conversations</h3><p>Verified working node operators may contact Apesoft through this separate channel without reciprocal whitelisting. Private conversations continue to require reciprocal contact approval.</p><p>No live support inbox is connected. No conversations are loaded or stored here.</p><button disabled>Refresh support inbox</button></article></div>`;
+}
+
 function corporateView() {
   if (!showCorporateDashboard()) return settingsView();
   return `<div class="content-page"><div class="page-title"><div><p class="eyebrow">Apesoft Canada · Corporate authority</p><h2>Corporate Dashboard</h2></div>${statusPill('Read-only preview','warning')}</div>
@@ -374,6 +379,7 @@ function deploymentsView() {
 
 function view() {
   if (state.tab === 'corporate') return corporateView();
+  if (state.tab === 'support-inbox') return supportInboxView();
   if (state.tab === 'contacts') return whitelistView(state, escapeHTML);
   if (state.tab === 'messages') return messagesView();
   if (state.tab === 'my-node') return myNodeView();
@@ -480,7 +486,7 @@ async function clearSession(reason, revoke = true) {
   state.identity = null;
   state.sessionExpires = null;
   state.wallet = null;
-  if (state.tab === 'corporate') state.tab = 'messages';
+  if (['corporate','support-inbox'].includes(state.tab)) state.tab = 'messages';
   state.walletError = reason || 'Session ended.';
   state.authBusy = false;
 
@@ -649,11 +655,6 @@ function bind() {
     });
   });
 
-  document.querySelector('[data-action="support"]')
-    ?.addEventListener('click', () => {
-      state.tab = 'messages';
-      renderConsole();
-    });
 
   document.querySelector('#generate-name')
     ?.addEventListener('click', () => {
@@ -758,7 +759,7 @@ export function renderConsole() {
         </div>
 
         <nav>
-          ${[...nav, ...(showCorporateDashboard() ? [['corporate', 'Apesoft Dashboard']] : [])].map(([id, label]) => `
+          ${[...nav, ...(showCorporateDashboard() ? [['corporate', 'Apesoft Dashboard'], ['support-inbox', 'Support Inbox']] : [])].map(([id, label]) => `
             <button data-tab="${id}"
               class="${state.tab === id ? 'active' : ''}" aria-current="${state.tab === id ? 'page' : 'false'}">
               <span>${escapeHTML(label)}</span>
