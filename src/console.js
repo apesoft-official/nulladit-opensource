@@ -227,7 +227,7 @@ function walletView() {
           ${state.wallet ? 'Wallet connected' : 'Connect wallet'}
         </button>
         <small>
-          Connection alone does not sign, pay, register, or authorize anything.
+          Console access requires a fresh wallet signature; no payment or network authorization is implied.
         </small>
       </article>
 
@@ -422,7 +422,7 @@ function authenticationGate() {
         <p class="eyebrow">Inviolable conversations</p>
         <h1>NULLADIT</h1>
         <p class="auth-copy">
-          Connect your wallet to explore the local console. Network authentication is separate.
+          Sign a fresh wallet challenge to unlock the local console. Network authentication is separate.
           No transaction or payment is requested to sign in.
         </p>
         <label for="wallet-choice">Choose your wallet</label>
@@ -552,6 +552,15 @@ async function connectBrowserWallet() {
       throw new Error('Wallet did not provide a valid address');
     }
 
+    const nonce = Array.from(crypto.getRandomValues(new Uint8Array(32)), b => b.toString(16).padStart(2,'0')).join('');
+    const message = ['NULLADIT Wallet Access','Action: Unlock this browser console','Origin: '+location.origin,'Wallet: '+wallet.toLowerCase(),'Chain ID: 324','Nonce: '+nonce,'No transaction or payment is requested.'].join('\n');
+    const signature = await provider.request({method:'personal_sign',params:[message,wallet]});
+    if (!/^0x[0-9a-fA-F]{130}$/.test(signature || '')) throw new Error('Wallet signature required');
+    const { verifyMessage } = await import('ethers');
+    if (verifyMessage(message,signature).toLowerCase() !== wallet.toLowerCase()) throw new Error('Wallet signature mismatch');
+    const currentAccounts = await provider.request({method:'eth_accounts'});
+    const currentChain = await provider.request({method:'eth_chainId'});
+    if (currentAccounts?.[0]?.toLowerCase() !== wallet.toLowerCase() || Number.parseInt(currentChain,16) !== 324) throw new Error('Wallet changed during authentication');
     if (attempt !== authGeneration) return;
     state.wallet = wallet;
     state.walletProvider = provider;
@@ -562,6 +571,7 @@ async function connectBrowserWallet() {
   } catch (error) {
     if (attempt !== authGeneration) return;
     state.wallet = null;
+    state.walletProvider = null;
     state.needsRegistration = false;
     state.showAccountSetup = false;
     state.walletError =
@@ -577,7 +587,7 @@ async function connectNodeSession() {
   if (!state.wallet || state.session || state.authBusy) return;
   const attempt = ++authGeneration;
   const wallet = state.wallet;
-  const provider = window.ethereum;
+  const provider = state.walletProvider;
   state.authBusy = true;
   state.walletError = '';
   renderConsole();
