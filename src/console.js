@@ -631,7 +631,7 @@ async function connectNodeSession() {
     state.nameOffer = null;
     state.needsRegistration = false;
     state.showAccountSetup = false;
-    state.walletError = 'Node authentication unavailable: ' + (error?.message || 'Connection failed');
+    state.walletError = 'Messaging sign-in incomplete: ' + (error?.message || 'Connection failed') + '. Your local wallet access remains available; retry after the messaging gateway is online.';
     if (setupToken) void revokeSetupSession(setupToken);
   } finally {
     if (attempt === authGeneration) { state.authBusy = false; renderConsole(); }
@@ -799,7 +799,7 @@ export function renderConsole() {
           <span>${state.session ? 'Network session active' : 'Local wallet mode · network not authenticated'}</span>
           <strong>Do not use for sensitive communications yet</strong>
         </div>
-        ${!state.session ? `<section class="content-page"><article class="card"><h3>Local wallet mode</h3><p>All tabs are available. Network actions require separate server authentication.</p><button id="connect-node" ${state.authBusy ? 'disabled' : ''}>${state.authBusy ? 'Connecting…' : 'Connect to messaging node'}</button><p role="status">${escapeHTML(state.walletError)}</p></article></section>` : ''}
+        ${!state.session ? `<section class="content-page"><article class="card"><h3>Local wallet mode</h3><p>Your wallet has unlocked this device only. To send or receive messages, the messaging server must issue a fresh, expiring challenge and verify your wallet signature. This is a sign-in, not a transaction, and costs no gas. If the server is unreachable, no signature is requested and messaging stays locked.</p><button id="connect-node" ${state.authBusy ? 'disabled' : ''}>${state.authBusy ? 'Waiting for server challenge or wallet approval…' : 'Request messaging sign-in challenge'}</button><p role="status">${escapeHTML(state.walletError)}</p></article></section>` : ''}
         ${view()}
       </main>
     </div>
