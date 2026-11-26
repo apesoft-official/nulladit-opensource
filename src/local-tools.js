@@ -20,7 +20,7 @@ export function whitelistView(state,esc){
   <form id="wallet-whitelist-form"><input name="wallet" placeholder="0x… wallet address" aria-label="Wallet to whitelist" required maxlength="42"><button>Add wallet</button></form>
   <p role="status">${esc(error||feedback)}</p>
   ${list.map(address=>`<div class="contact-row"><strong class="wallet-address">${esc(address)}</strong><small>Added by you · reciprocal approval unknown</small><button class="secondary" data-remove-wallet="${esc(address)}">Remove</button></div>`).join('')}
-  ${list.length?'':'<p>No locally whitelisted wallets yet.</p>'}
+  ${list.length?'<button id="clear-local-whitelist" class="secondary">Clear all local approvals</button>':'<p>No locally whitelisted wallets yet.</p>'}
   </article><article class="card"><h3>Mutual approval</h3><p>Automatic added-you-back status requires an authenticated shared contact service. Until that service is available, reciprocal approval stays unknown. Local additions never unlock messaging.</p></article></div>`;
 }
 export function formatAmount(value){const n=BigInt(value);if(n<0n)throw Error('Invalid balance');const base=10n**18n;return String(n/base)+'.'+String(n%base).padStart(18,'0').replace(/0+$/,'').padEnd(1,'0');}
@@ -31,6 +31,10 @@ export function bindLocalTools(state,render){
   document.querySelector('#wallet-whitelist-form')?.addEventListener('submit',event=>{
     event.preventDefault();
     try{const wallet=normalizeWallet(state.wallet), address=normalizeWallet(new FormData(event.currentTarget).get('wallet'));if(wallet===address)throw Error('You cannot add your own wallet');const list=read(wallet);if(list.includes(address))throw Error('Wallet already added');if(list.length>=500)throw Error('Local whitelist limit reached');write(wallet,[...list,address]);feedback='Wallet added locally';}catch(e){feedback=e.message;}render();
+  });
+  document.querySelector('#clear-local-whitelist')?.addEventListener('click',()=>{
+    if(!window.confirm('Delete all locally saved wallet approvals for this wallet on this browser?'))return;
+    try{localStorage.removeItem(storageKey(state.wallet));feedback='Local approvals deleted';}catch(e){feedback=e.message;}render();
   });
   document.querySelectorAll('[data-remove-wallet]').forEach(button=>button.addEventListener('click',()=>{
     try{const wallet=normalizeWallet(state.wallet);write(wallet,read(wallet).filter(x=>x!==button.dataset.removeWallet));feedback='Local approval removed';}catch(e){feedback=e.message;}render();

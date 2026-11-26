@@ -716,7 +716,7 @@ export function renderConsole() {
         <nav>
           ${nav.map(([id, label]) => `
             <button data-tab="${id}"
-              class="${state.tab === id ? 'active' : ''}">
+              class="${state.tab === id ? 'active' : ''}" aria-current="${state.tab === id ? 'page' : 'false'}">
               <span>${escapeHTML(label)}</span>
             </button>
           `).join('')}

@@ -57,6 +57,7 @@ export class NulladitClient {
         cache: 'no-store',
         credentials: 'include',
         redirect: 'error',
+        signal: AbortSignal.timeout(15000),
       }
     );
 

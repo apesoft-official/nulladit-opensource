@@ -45,6 +45,7 @@ async function post(path, body) {
     cache: 'no-store',
     credentials: 'include',
     redirect: 'error',
+        signal: AbortSignal.timeout(15000),
   });
 
   if (!response.ok) {
