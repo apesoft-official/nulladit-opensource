@@ -1,6 +1,8 @@
 import { chromium } from 'playwright';
 import { Wallet, verifyMessage } from 'ethers';
 import assert from 'node:assert/strict';
+const kind=process.env.NULLADIT_TEST_WALLET||'metamask';
+assert.ok(['metamask','coinbase'].includes(kind));
 const wallet=Wallet.createRandom();
 const other=Wallet.createRandom();
 const browser=await chromium.launch({headless:true});
@@ -16,9 +18,9 @@ await page.exposeFunction('testSign',async(message,address)=>{
   assert.equal(address.toLowerCase(),wallet.address.toLowerCase());
   signed++; return wallet.signMessage(message);
 });
-await page.addInitScript(({address,other})=>{
+await page.addInitScript(({address,other,kind})=>{
   const events={}; let account=address, chain='0x1';
-  window.ethereum={isMetaMask:true,on:(name,fn)=>{events[name]=fn;},request:async({method,params})=>{
+  const selected={isMetaMask:kind==='metamask',isCoinbaseWallet:kind==='coinbase',on:(name,fn)=>{events[name]=fn;},request:async({method,params})=>{
     if(method==='eth_chainId')return chain;
     if(method==='wallet_switchEthereumChain'){chain=params[0].chainId;return null;}
     if(['eth_accounts','eth_requestAccounts'].includes(method))return [account];
@@ -27,8 +29,10 @@ await page.addInitScript(({address,other})=>{
     if(method==='eth_call')return '0x'+(2n*10n**18n).toString(16).padStart(64,'0');
     throw Error('Unexpected wallet method '+method);
   }};
+  const wrong={isMetaMask:kind==='coinbase',isCoinbaseWallet:kind==='metamask',request:async()=>{throw Error('Wrong provider selected');}};
+  window.ethereum={providers:[wrong,selected],request:wrong.request};
   window.testAccountChange=()=>{account=other;events.accountsChanged?.([other]);};
-},{address:wallet.address,other:other.address});
+},{address:wallet.address,other:other.address,kind});
 await page.route('https://node.nulladit.org/**',async route=>{
   const req=route.request(),path=new URL(req.url()).pathname;
   if(req.method()==='OPTIONS'){await route.fulfill({status:204,headers:{'Access-Control-Allow-Origin':'http://127.0.0.1:4173','Access-Control-Allow-Credentials':'true','Access-Control-Allow-Methods':'POST, GET, OPTIONS','Access-Control-Allow-Headers':'content-type'}});return;}
@@ -56,6 +60,7 @@ await page.route('https://node.nulladit.org/**',async route=>{
 });
 try{
   await page.goto('http://127.0.0.1:4173');
+  await page.locator('#wallet-choice').selectOption(kind);
   await page.locator('#connect-and-authenticate').click();
   await page.locator('[data-tab=contacts]').click();
   await page.getByLabel('Wallet to whitelist').fill(other.address);
