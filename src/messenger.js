@@ -59,8 +59,9 @@ export function bindMessenger(state, render) {
     event.preventDefault();
     const data=new FormData(event.currentTarget);
     const id=String(data.get('identity')).trim().toLowerCase().replaceAll(' ','-'),key=String(data.get('key')).trim();
+    const verified = data.has('verified');
     task(async(api,active)=>{
-      if(!/^[a-z0-9_-]{3,32}$/.test(id)||id===api.identity||!data.get('verified')||! /^[A-Za-z0-9+/]{43}=$/.test(key)||atob(key).length!==32)throw new Error('Valid independently verified contact key required');
+      if(!/^[a-z0-9_-]{3,32}$/.test(id)||id===api.identity||!verified||! /^[A-Za-z0-9+/]{43}=$/.test(key)||atob(key).length!==32)throw new Error('Valid independently verified contact key required');
       if(contacts.has(id)&&contacts.get(id)!==key)throw new Error('Withdraw approval before replacing a trusted key');
       const result=await api.setContact(id);
       if(result.accepted!==true)throw new Error('Approval not confirmed');

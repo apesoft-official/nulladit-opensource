@@ -8,6 +8,8 @@ const page=await browser.newPage();
 const errors=[];
 page.on('pageerror',e=>errors.push(e.message));
 const requests=[];
+page.on('requestfailed',r=>console.error('Request failed',new URL(r.url()).pathname,r.failure()?.errorText));
+page.on('console',m=>{if(m.type()==='error')console.error('Browser error:',m.text());});
 let offers=0, signed=0, approved=false, sent=0;
 const nonce='a'.repeat(64), token='b'.repeat(64), session='c'.repeat(64);
 await page.exposeFunction('testSign',async(message,address)=>{
@@ -29,6 +31,7 @@ await page.addInitScript(({address,other})=>{
 },{address:wallet.address,other:other.address});
 await page.route('https://node.nulladit.org/**',async route=>{
   const req=route.request(),path=new URL(req.url()).pathname;
+  if(req.method()==='OPTIONS'){await route.fulfill({status:204,headers:{'Access-Control-Allow-Origin':'http://127.0.0.1:4173','Access-Control-Allow-Credentials':'true','Access-Control-Allow-Methods':'POST, GET, OPTIONS','Access-Control-Allow-Headers':'content-type'}});return;}
   const body=req.method()==='POST'?req.postDataJSON():{};
   requests.push(path);
   const expires=Math.floor(Date.now()/1000)+120;
@@ -94,4 +97,4 @@ try{
   await page.locator('#connect-and-authenticate').waitFor();
   assert.deepEqual(errors,[]);
   console.log('Browser wallet signatures, local whitelist, tabs, balances, setup, encrypted send, inbox, health, withdrawal and account invalidation passed');
-}finally{await browser.close();}
+}catch(error){console.error('UI state:',await page.locator('body').innerText());console.error('Requests:',requests);console.error('Page errors:',errors);throw error;}finally{await browser.close();}
