@@ -48,6 +48,7 @@ const nav = [
   ['active-nodes', 'Active Nodes'],
   ['wallet', 'Wallet'],
   ['updates', 'Updates'],
+  ['deployments', 'Deployments'],
   ['settings', 'Settings'],
 ];
 
@@ -332,6 +333,16 @@ function settingsView() {
   `;
 }
 
+function deploymentsView() {
+  const recorded = [["NULL22 Authority","0xEDbE3eF68315F9De399Cb77f0243C5a20e11305C"],["NULL22 Controller","0x4bd6776a16cC838D4A92C16FB3B0bc32330E3427"],["NULL22 Permanent","0x332a8e2CeE5398D52616fCABd87966010C5A7a82"],["NVSP Registration Pricing","0xdEbbc5932516c6FC083b2F2B8aAd823402f148B5"],["NVSP Mining Registration V3","0x4A1e5037397837fFD7Bd59865A3a0dCD06386E15"],["NVSP Bond Settlement Adapter V3","0x78E84F3649976fc418a9aD53Bb0e4063AfB47af2"],["NVSP Epoch Anchor","0xaC4179803BeDbEe923BDF4b82eC147cF82f7B9D8"],["NVSP Adjudication Governance","0x978eD18f0a017b06d4F0C02EB11D4C540D3c5c06"]];
+  const pending = ["Permanent adjudication seat 1 (initial panel)","Permanent adjudication seat 2 (initial panel)","Permanent adjudication seat 3 (initial panel)","Permanent adjudication seat 4 (initial panel)","Permanent adjudication seat 5 (initial panel)","Permanent adjudication seat 6 (appeal panel)","Permanent adjudication seat 7 (appeal panel)","Permanent adjudication seat 8 (appeal panel)","Permanent adjudication seat 9 (appeal panel)","Permanent adjudication seat 10 (appeal panel)","Security Bond V4 (earned 50 NULL22)","Proof-of-Service Upgrade Governor","Upgrade-compatible settlement integration (design pending)"];
+  return `<div class="content-page local-tools"><div class="page-title"><div><p class="eyebrow">ZKsync Era · Chain 324</p><h2>Contract deployments</h2></div>${statusPill('Mining not authorized', 'warning')}</div>
+  <article class="card"><h3>Recorded mainnet deployments</h3><p>Addresses from the project deployment records. This is a read-only inventory, not a live chain attestation or independent security audit. Configuration and finality require verification.</p>
+  ${recorded.map(([name,address])=>`<div class="contact-row"><strong>${escapeHTML(name)}</strong><span class="wallet-address">${address}</span><a href="https://explorer.zksync.io/address/${address}" target="_blank" rel="noopener noreferrer">View on ZKsync explorer</a></div>`).join('')}</article>
+  <article class="card"><h3>Outstanding deployment and integration work</h3><p>Apesoft Canada initially controls all ten seats. Proof upgrades must not confer adjudication or confiscation powers. The existing adapter has an immutable proof authorizer; replacement integration requires design and testing.</p>${pending.map(name=>`<div class="contact-row"><strong>${escapeHTML(name)}</strong><small>Pending — no deployment receipt recorded</small></div>`).join('')}</article>
+  <article class="card"><h3>Mining release gate</h3><p>Deploy, verify receipts and bytecode, configure permissions and timelocks, test reward and bond accounting, complete independent review, then obtain explicit activation approval. No transaction can be submitted from this page.</p></article></div>`;
+}
+
 function view() {
   if (state.tab === 'contacts') return whitelistView(state, escapeHTML);
   if (state.tab === 'messages') return messagesView();
@@ -339,6 +350,7 @@ function view() {
   if (state.tab === 'active-nodes') return activeNodesView();
   if (state.tab === 'wallet') return walletView();
   if (state.tab === 'updates') return updatesView();
+  if (state.tab === 'deployments') return deploymentsView();
   return settingsView();
 }
 
