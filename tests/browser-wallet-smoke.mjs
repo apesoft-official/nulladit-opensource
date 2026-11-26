@@ -18,7 +18,7 @@ await page.exposeFunction('testSign',async(message,address)=>{
 });
 await page.addInitScript(({address,other})=>{
   const events={}; let account=address, chain='0x1';
-  window.ethereum={on:(name,fn)=>{events[name]=fn;},request:async({method,params})=>{
+  window.ethereum={isMetaMask:true,on:(name,fn)=>{events[name]=fn;},request:async({method,params})=>{
     if(method==='eth_chainId')return chain;
     if(method==='wallet_switchEthereumChain'){chain=params[0].chainId;return null;}
     if(['eth_accounts','eth_requestAccounts'].includes(method))return [account];

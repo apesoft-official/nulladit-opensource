@@ -1,3 +1,4 @@
+import { selectProvider } from './wallet-selection.js';
 import './console.css';
 import { whitelistView, walletReadsView, bindLocalTools, resetLocalTools } from './local-tools.js';
 import { messengerView, bindMessenger, resetMessenger } from './messenger.js';
@@ -30,6 +31,8 @@ const state = {
   autoSelect: true,
   strictRelays: true,
   wallet: null,
+  walletProvider: null,
+  walletKind: 'metamask',
   walletError: '',
   session: null,
   identity: null,
@@ -370,7 +373,7 @@ function candidate() {
   return `${first} ${second} ${number}`;
 }
 
-let providerEventsBound = false;
+const boundProviders = new WeakSet();
 let authGeneration = 0;
 let sessionExpiryTimer = null;
 
@@ -422,9 +425,14 @@ function authenticationGate() {
           Connect your wallet to explore the local console. Network authentication is separate.
           No transaction or payment is requested to sign in.
         </p>
+        <label for="wallet-choice">Choose your wallet</label>
+        <select id="wallet-choice" ${state.authBusy?'disabled':''}>
+          <option value="metamask" ${state.walletKind==='metamask'?'selected':''}>MetaMask</option>
+          <option value="coinbase" ${state.walletKind==='coinbase'?'selected':''}>Coinbase Wallet</option>
+        </select>
         <button id="connect-and-authenticate"
           ${state.authBusy || state.needsRegistration ? 'disabled' : ''}>
-          ${state.authBusy ? 'Waiting for wallet…' : 'Connect EVM wallet'}
+          ${state.authBusy ? 'Waiting for wallet…' : 'Connect selected wallet'}
         </button>
         <p class="auth-status" role="status">${escapeHTML(status)}</p>
         ${state.needsRegistration ? `
@@ -457,6 +465,7 @@ async function clearSession(reason, revoke = true) {
   state.identity = null;
   state.sessionExpires = null;
   state.wallet = null;
+  state.walletProvider = null;
   state.tab = 'messages';
   state.walletError = reason || 'Session ended.';
   state.authBusy = false;
@@ -475,19 +484,20 @@ async function clearSession(reason, revoke = true) {
 }
 
 function bindProviderEvents(provider) {
-  if (providerEventsBound || !provider?.on) return;
-  providerEventsBound = true;
+  if (boundProviders.has(provider) || !provider?.on) return;
+  boundProviders.add(provider);
 
   provider.on('accountsChanged', () => {
+    if(state.walletProvider!==provider)return;
     clearSession('Wallet account changed. Sign in again.');
   });
   provider.on('chainChanged', (chainHex) => {
-    if (Number.parseInt(chainHex, 16) !== 324) {
+    if (state.walletProvider===provider && Number.parseInt(chainHex, 16) !== 324) {
       clearSession('Wallet left ZKsync Era. Sign in again.');
     }
   });
   provider.on('disconnect', () => {
-    clearSession('Wallet disconnected.');
+    if(state.walletProvider===provider)clearSession('Wallet disconnected.');
   });
 }
 
@@ -508,7 +518,7 @@ async function connectBrowserWallet() {
   renderConsole();
 
   try {
-    const provider = window.ethereum;
+    const provider = selectProvider(state.walletKind);
     if (!provider?.request) {
       throw new Error('Compatible browser wallet not detected');
     }
@@ -544,6 +554,7 @@ async function connectBrowserWallet() {
 
     if (attempt !== authGeneration) return;
     state.wallet = wallet;
+    state.walletProvider = provider;
     bindProviderEvents(provider);
     state.walletError = '';
 
@@ -674,6 +685,7 @@ function bind() {
 export function renderConsole() {
   if (!state.wallet || state.showAccountSetup) {
     document.querySelector('#app').innerHTML = authenticationGate();
+    document.querySelector('#wallet-choice')?.addEventListener('change',e=>{state.walletKind=e.target.value;});
     document.querySelector('#connect-and-authenticate')
       ?.addEventListener('click', connectBrowserWallet);
 
@@ -706,7 +718,7 @@ export function renderConsole() {
         const attempt = authGeneration;
         try {
           const result = await registerTesterAccount({
-            provider: window.ethereum,
+            provider: state.walletProvider,
             wallet: state.wallet,
             setupToken: state.setupToken,
             offerToken: state.nameOffer,

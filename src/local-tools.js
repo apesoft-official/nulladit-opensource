@@ -40,7 +40,7 @@ export function bindLocalTools(state,render){
     try{const wallet=normalizeWallet(state.wallet);write(wallet,read(wallet).filter(x=>x!==button.dataset.removeWallet));feedback='Local approval removed';}catch(e){feedback=e.message;}render();
   }));
   document.querySelector('#read-balances')?.addEventListener('click',async()=>{
-    if(busy)return;const wallet=normalizeWallet(state.wallet), attempt=++generation, provider=window.ethereum;
+    if(busy)return;const wallet=normalizeWallet(state.wallet), attempt=++generation, provider=state.walletProvider;
     const active=()=>attempt===generation&&state.wallet?.toLowerCase()===wallet;
     busy=true;feedback='';balances=null;render();
     try{
