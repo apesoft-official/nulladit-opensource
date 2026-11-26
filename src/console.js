@@ -24,6 +24,9 @@ const secondWords = [
 ];
 
 
+const LOCAL_OPERATOR_MODE = location.protocol === 'http:' && location.hostname === '127.0.0.1';
+let localHealthAutoCheckStarted = false;
+
 const state = {
   tab: 'messages',
   candidate: 'Cedar Loon 4827',
@@ -46,6 +49,8 @@ const state = {
   localHealth: null,
   localHealthBusy: false,
 };
+
+if (LOCAL_OPERATOR_MODE) state.tab = 'my-node';
 
 const nav = [
   ['messages', 'Messages'],
@@ -115,9 +120,9 @@ function myNodeView() {
           <h3>Node status</h3>
           <div class="metric">${state.localHealth ? "Online locally" : "Not checked"}</div>
           <p>
-            ${state.localHealth ? 'Local node: ' + escapeHTML(state.localHealth) : 'Check the installed local runtime. Internet relay enrollment is not yet available.'}
+            ${state.localHealth ? 'Local node: ' + escapeHTML(state.localHealth) : 'This dashboard checks the local node started by the NULLADIT launcher. It does not start another process. Peer enrollment and mining are unavailable in this preview.'}
           </p>
-          <button id="local-health" ${state.localHealthBusy?'disabled':''}>Check local node</button>
+          <button id="local-health" ${state.localHealthBusy?'disabled':''}>${state.localHealthBusy ? 'Checking node…' : 'Refresh node status'}</button>
           <small>Mining is unavailable and remains paused.</small>
         </article>
 
@@ -643,20 +648,30 @@ window.addEventListener('offline', () => {
 });
 
 
-function bind() {
-  document.querySelector('#local-health')?.addEventListener('click',async()=>{
-    if(state.localHealthBusy)return;
-    state.localHealthBusy=true;state.localHealth=null;
-    const attempt=authGeneration;
+async function refreshLocalNodeHealth() {
+  if (state.localHealthBusy || !LOCAL_OPERATOR_MODE) return;
+  state.localHealthBusy = true;
+  state.localHealth = null;
+  const attempt = authGeneration;
+  renderConsole();
+  try {
+    const response = await fetch('/health', {
+      cache: 'no-store', redirect: 'error', signal: AbortSignal.timeout(3000)
+    });
+    const data = await response.json();
+    if (response.ok && data.service === 'NULLADIT' && data.status === 'local' &&
+        /^[0-9a-f]{64}$/.test(data.node) && attempt === authGeneration) {
+      state.localHealth = data.node;
+    }
+  } catch {}
+  finally {
+    state.localHealthBusy = false;
     renderConsole();
-    try {
-      if(location.protocol!=='http:' || location.hostname!=='127.0.0.1')throw Error('Open the installed dashboard from the local node');
-      const response=await fetch('/health',{cache:'no-store',redirect:'error',signal:AbortSignal.timeout(3000)});
-      const data=await response.json();
-      if(response.ok&&data.service==='NULLADIT'&&data.status==='local'&&/^[0-9a-f]{64}$/.test(data.node)&&attempt===authGeneration)state.localHealth=data.node;
-    }catch{}
-    finally{state.localHealthBusy=false;renderConsole();}
-  });
+  }
+}
+
+function bind() {
+  document.querySelector('#local-health')?.addEventListener('click', refreshLocalNodeHealth);
   bindLocalTools(state, renderConsole);
   if (state.session) bindMessenger(state, renderConsole);
   document.querySelector('#connect-node')?.addEventListener('click', connectNodeSession);
@@ -703,7 +718,7 @@ function bind() {
 }
 
 export function renderConsole() {
-  if (!state.wallet || state.showAccountSetup) {
+  if ((!state.wallet && !LOCAL_OPERATOR_MODE) || state.showAccountSetup) {
     document.querySelector('#app').innerHTML = authenticationGate();
     document.querySelector('#wallet-choice')?.addEventListener('change',e=>{state.walletKind=e.target.value;});
     document.querySelector('#connect-and-authenticate')
@@ -780,7 +795,7 @@ export function renderConsole() {
         </div>
 
         <nav>
-          ${nav.map(([id, label]) => `
+          ${(LOCAL_OPERATOR_MODE ? nav.filter(([id]) => id === 'my-node') : nav).map(([id, label]) => `
             <button data-tab="${id}"
               class="${state.tab === id ? 'active' : ''}" aria-current="${state.tab === id ? 'page' : 'false'}">
               <span>${escapeHTML(label)}</span>
@@ -796,7 +811,7 @@ export function renderConsole() {
 
       <main class="console-main">
         <div class="top-strip">
-          <span>${state.session ? 'Network session active' : 'Local wallet mode · network not authenticated'}</span>
+          <span>${LOCAL_OPERATOR_MODE ? 'Local node operator view · loopback only' : state.session ? 'Network session active' : 'Local wallet mode · network not authenticated'}</span>
           <strong>Do not use for sensitive communications yet</strong>
         </div>
         ${!state.session ? `<section class="content-page"><article class="card"><h3>Local wallet mode</h3><p>Your wallet has unlocked this device only. To send or receive messages, the messaging server must issue a fresh, expiring challenge and verify your wallet signature. This is a sign-in, not a transaction, and costs no gas. If the server is unreachable, no signature is requested and messaging stays locked.</p><button id="connect-node" ${state.authBusy ? 'disabled' : ''}>${state.authBusy ? 'Waiting for server challenge or wallet approval…' : 'Request messaging sign-in challenge'}</button><p role="status">${escapeHTML(state.walletError)}</p></article></section>` : ''}
@@ -805,4 +820,8 @@ export function renderConsole() {
     </div>
   `;
   bind();
+  if (LOCAL_OPERATOR_MODE && !localHealthAutoCheckStarted) {
+    localHealthAutoCheckStarted = true;
+    void refreshLocalNodeHealth();
+  }
 }
