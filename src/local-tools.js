@@ -1,3 +1,22 @@
+import { keccak_256 } from '@noble/hashes/sha3';
+export const WHITELIST='0xcECc869b43f59c951F61cE70DbE11d6Eb3EeeCAF';
+const selector=s=>Array.from(keccak_256(new TextEncoder().encode(s)).slice(0,4),b=>b.toString(16).padStart(2,'0')).join('');
+const word=a=>normalizeWallet(a).slice(2).padStart(64,'0');
+export async function publicApproval(provider,owner,target,allow){
+ owner=normalizeWallet(owner);target=normalizeWallet(target);
+ if(owner===target||/^0x0{40}$/.test(target)||typeof allow!=='boolean')throw Error('Invalid approval');
+ const check=async()=>{if(await provider.request({method:'eth_chainId'})!=='0x144')throw Error('Select ZKsync Era mainnet');const a=await provider.request({method:'eth_accounts'});if(a[0]?.toLowerCase()!==owner)throw Error('Wallet changed');};
+ await check();
+ const data='0x'+selector('setApproval(address,bool)')+word(target)+(allow?'1':'0').padStart(64,'0');
+ const hash=await provider.request({method:'eth_sendTransaction',params:[{from:owner,to:WHITELIST,data,value:'0x0'}]});
+ if(!/^0x[0-9a-fA-F]{64}$/.test(hash))throw Error('Invalid transaction hash');
+ return hash;
+}
+export async function approvalStatus(provider,owner,target){
+ if(await provider.request({method:'eth_chainId'})!=='0x144')throw Error('Select ZKsync Era mainnet');
+ const read=async signature=>{const v=await provider.request({method:'eth_call',params:[{to:WHITELIST,data:'0x'+selector(signature)+word(owner)+word(target)},'latest']});if(!/^0x0{63}[01]$/.test(v))throw Error('Invalid contract response');return v.endsWith('1');};
+ return {approved:await read('approved(address,address)'),mutual:await read('mutuallyApproved(address,address)')};
+}
 // Local-only wallet contact preferences. Never used as network authorization.
 const ADDRESS = /^0x[0-9a-fA-F]{40}$/;
 const TOKEN = '0x332a8e2CeE5398D52616fCABd87966010C5A7a82';
@@ -18,7 +37,7 @@ export function whitelistView(state,esc){
   <p>Approve wallets locally without a messaging node. These preferences are saved in this browser for the connected wallet only. They are not network permissions and do not reveal whether another person has approved you.</p>
   <p class="wallet-address">${esc(state.wallet)}</p>
   <form id="wallet-whitelist-form"><input name="wallet" placeholder="0x… wallet address" aria-label="Wallet to whitelist" required maxlength="42"><button>Add wallet</button></form>
-  <p role="status">${esc(error||feedback)}</p>
+  <p>Public on-chain approvals are permanent public records and require gas. Local contacts are not published automatically.</p><form id="public-approval-form"><input name="wallet" placeholder="0x… wallet address" required maxlength="42"><select name="action"><option value="approve">Approve publicly</option><option value="revoke">Revoke publicly</option><option value="check">Check on-chain status</option></select><button ${busy?'disabled':''}>Continue</button></form><p role="status">${esc(error||feedback)}</p>
   ${list.map(address=>`<div class="contact-row"><strong class="wallet-address">${esc(address)}</strong><small>Added by you · reciprocal approval unknown</small><button class="secondary" data-remove-wallet="${esc(address)}">Remove</button></div>`).join('')}
   ${list.length?'<button id="clear-local-whitelist" class="secondary">Clear all local approvals</button>':'<p>No locally whitelisted wallets yet.</p>'}
   </article><article class="card"><h3>Mutual approval</h3><p>Automatic added-you-back status requires an authenticated shared contact service. Until that service is available, reciprocal approval stays unknown. Local additions never unlock messaging.</p></article></div>`;
@@ -28,6 +47,34 @@ export function walletReadsView(state,esc){
   return `<article class="card local-tools"><h3>Live ZKsync Era balances</h3><p>Read-only wallet RPC. No transaction or signature required.</p><p>ETH: <strong>${esc(balances?.eth??'Not checked')}</strong></p><p>NULL22: <strong>${esc(balances?.token??'Not checked')}</strong></p><button id="read-balances" ${busy?'disabled':''}>${busy?'Reading…':'Refresh balances'}</button><p role="status">${esc(feedback)}</p></article>`;
 }
 export function bindLocalTools(state,render){
+  document.querySelector('#public-approval-form')?.addEventListener('submit',async event=>{
+    event.preventDefault();if(busy)return;
+    const form=new FormData(event.currentTarget), action=form.get('action'), owner=state.wallet, provider=state.walletProvider, attempt=++generation;
+    const active=()=>attempt===generation&&state.wallet===owner;
+    busy=true;
+    try{
+      const target=normalizeWallet(form.get('wallet'));
+      if(action==='check'){const status=await approvalStatus(provider,owner,target);if(active())feedback='On-chain approval: '+status.approved+'; mutual approval: '+status.mutual;}
+      else if(action==='approve'||action==='revoke'){
+        if(!window.confirm('Publish a public wallet approval change on ZKsync Era? Gas fees apply. The relationship history cannot be erased.'))return;
+        const hash=await publicApproval(provider,owner,target,action==='approve');
+        if(active())feedback='Submitted, not confirmed: '+hash;
+        render();
+        for(let i=0;i<30&&active();i++){
+          await new Promise(resolve=>setTimeout(resolve,2000));
+          if(!active())break;
+          if(await provider.request({method:'eth_chainId'})!=='0x144')throw Error('Network changed; transaction confirmation unknown');
+          const receipt=await provider.request({method:'eth_getTransactionReceipt',params:[hash]});
+          if(!receipt)continue;
+          if(receipt.status!=='0x1'||receipt.transactionHash?.toLowerCase()!==hash.toLowerCase()||receipt.to?.toLowerCase()!==WHITELIST.toLowerCase()||receipt.from?.toLowerCase()!==normalizeWallet(owner))throw Error('Transaction failed or receipt mismatch');
+          const status=await approvalStatus(provider,owner,target);
+          if(active())feedback='Receipt confirmed; current approval: '+status.approved+'; mutual approval: '+status.mutual;
+          break;
+        }
+      }
+    }catch(e){if(active())feedback=e.message||'Approval request failed';}
+    finally{if(active()){busy=false;render();}}
+  });
   document.querySelector('#wallet-whitelist-form')?.addEventListener('submit',event=>{
     event.preventDefault();
     try{const wallet=normalizeWallet(state.wallet), address=normalizeWallet(new FormData(event.currentTarget).get('wallet'));if(wallet===address)throw Error('You cannot add your own wallet');const list=read(wallet);if(list.includes(address))throw Error('Wallet already added');if(list.length>=500)throw Error('Local whitelist limit reached');write(wallet,[...list,address]);feedback='Wallet added locally';}catch(e){feedback=e.message;}render();
