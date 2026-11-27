@@ -5,3 +5,8 @@
 Aurora Covenant is a proposed on-chain registry beneath the original eight NULLADIT contracts. Its candidate source and full review gates are documented in the private core and the PELAVIUM research repository. A future client may display a registry record only after the contract address, chain, approval result, artifact digest, manifest digest and revocation state are independently verified from trusted public configuration.
 
 The registry does not install updates or override operator choice. NOMC must not bundle governance keys, submit privileged actions, treat repository publication as approval, or silently adopt PELAVIUM code. No client integration or production dependency is authorized by this note.
+
+
+## Vestigium
+
+The proposed [VESTIGIUM accountability contract](https://github.com/apesoft-official/nulladit-pelavium/blob/main/VESTIGIUM.md) is separate research code, not a client privilege or production dependency. It is designed to anchor opaque batch commitments and cannot authorize access to messages, relationships, or personal data. NOMC should not submit privileged contract actions or infer consent to surveillance from wallet connection.
