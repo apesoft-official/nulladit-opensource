@@ -34,3 +34,7 @@ Developed by **Apesoft Canada** · **Inviolable Conversations**
 
 
 The proposed [VESTIGIUM accountability contract](https://github.com/apesoft-official/nulladit-pelavium/blob/main/VESTIGIUM.md) is research-only and grants no access to protected data.
+
+## VESTIGIUM — Evidence without surveillance
+
+Read the [Doctrine of Evidentiary Restraint](VESTIGIUM-PHILOSOPHY.md). **Prove the violation, not the conversation.** VESTIGIUM is a proposed accountability doctrine, not a deployed surveillance or access mechanism.
