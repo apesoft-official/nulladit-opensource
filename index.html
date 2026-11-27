@@ -1,18 +1,8 @@
 <!doctype html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#111827">
-  <meta name="description" content="NULLADIT — Inviolable Conversations. Experimental encrypted messenger preview by Apesoft Canada.">
-  <title>NULLADIT — Inviolable Conversations</title>
-</head>
-<body>
-  <section aria-label="Windows installer" style="text-align:center;padding:1rem;font-family: 'Book Antiqua', Georgia, serif">
-<a href="https://github.com/apesoft-official/nulladit-opensource-messenger-client/releases/download/installer-2026-11-27/nullADIT.exe">Updated NULLADIT installation as of November 27, 2026</a>
-<p><small>Windows x64 preview installer. Live network verification pending. No Windows version information is collected.</small></p>
-</section>
-<div id="app"></div>
-  <script type="module" src="/src/main.js"></script>
-</body>
-</html>
+<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>NULLADIT — Inviolable Conversations</title><style>body{font-family:"Book Antiqua",Palatino,Georgia,serif;background:white;color:#222;margin:2rem auto;max-width:760px;padding:0 1rem;line-height:1.6}h1,h2,header,footer{text-align:center}h1{letter-spacing:.12em;margin-bottom:0}h2{font-size:1.2rem;background:#eee;border-block:1px solid #ccc}p{text-indent:2em}header p,footer p{text-indent:0}a{color:#0000a0}li{margin:.6rem 0}</style></head><body>
+<header><h1>NULLADIT</h1><i>Inviolable Conversations.</i></header>
+<main id="landing"><h2>Installation</h2><p><a href="https://github.com/apesoft-official/nulladit-opensource-messenger-client/releases/download/installer-2026-11-27/nullADIT.exe">Updated NULLADIT installation as of November 27, 2026</a></p><p>Windows x64 preview. Independent network connectivity remains under verification.</p>
+<h2>Messaging</h2><p><a href="?client=1">Open Apesoft Canada's official browser messaging client</a></p>
+<h2>Public source code and documentation</h2><ul><li><a href="https://github.com/apesoft-official/nulladit-opensource-messenger-client">Open-source messenger client</a></li><li><a href="https://github.com/apesoft-official/nulladit-deployed-open-source-encryption-logic">Deployed encryption logic</a></li><li><a href="https://github.com/apesoft-official/nulladit-pelavium">PELAVIUM research and documentation</a></li></ul>
+<h2>Privacy and terms</h2><details><summary>Privacy notice</summary><p>This landing page does not request Windows version information. Hosting and download providers may process connection information under their own policies. The messaging client has separate data-processing requirements.</p></details><details><summary>Preview terms</summary><p>The installer is experimental software. Network availability and compatibility are not guaranteed. Do not rely on this preview for critical communications.</p></details>
+<footer><hr><a href="https://apesoft.ca">Apesoft Canada</a></footer></main><div id="app" hidden></div><script type="module">if(new URLSearchParams(location.search).get('client')==='1'){document.querySelector('header').hidden=true;document.querySelector('#landing').hidden=true;document.querySelector('#app').hidden=false;import('/src/main.js');}</script></body></html>
