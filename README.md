@@ -31,3 +31,6 @@ Privacy is not a privilege conferred by an intermediary. NULLADIT seeks to make 
 Aurora Covenant is only a proposal; see [AURORA-COVENANT.md](AURORA-COVENANT.md) for the client privilege boundary.
 
 Developed by **Apesoft Canada** · **Inviolable Conversations**
+
+
+The proposed [VESTIGIUM accountability contract](https://github.com/apesoft-official/nulladit-pelavium/blob/main/VESTIGIUM.md) is research-only and grants no access to protected data.
