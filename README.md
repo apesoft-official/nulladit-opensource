@@ -1,7 +1,30 @@
 # NOMC — NULLADIT Open Source Messenger Client
 
-Official public client project for NULLADIT, an experimental encrypted messenger by Apesoft Canada. Intended for independent development and rebuilding compatible messenger apps and client-only installers using documented public network interfaces. Proprietary node infrastructure is maintained separately and is not part of this repository.
+**One network · Many independent messengers**
 
-All contributions and releases must follow the [coding constitution](CONSTITUTION.md). Build and network compatibility claims require verification; this README does not certify installer readiness.
+A network should not require its participants to depend on one vendor's interface. NOMC is the public client development surface for independently built messenger applications, websites and client-only device installers that communicate over the same NULLADIT protocol.
 
-NODSEL is the designated deployed encryption transparency project; PELAVIUM is separate experimental privacy research.
+## Developer pathways
+- Rebuild updated device installers for supported platforms from a clean public checkout.
+- Host an independent website or build a standalone application using versioned public interfaces.
+- Verify network configuration, authentication, encryption compatibility and messaging behavior without access to private infrastructure.
+
+## Trust boundary
+Client software must not contain proprietary node binaries, private administration, credentials or privileged services. Official signed releases and independent builds must be distinguishable. NODSEL is the deployed-encryption reference; PELAVIUM is not a production dependency.
+
+## Build and release evidence
+Publish dependency locks, platform support, build instructions, protocol versions, hashes and test results as they become verified. This README does not establish that every target is currently buildable or interoperable.
+
+All contributions follow the [engineering constitution](CONSTITUTION.md).
+
+## The architecture of trust
+Privacy is not a privilege conferred by an intermediary. NULLADIT seeks to make confidential communication an architectural property rather than a promise of institutional discretion. Independent operation, verifiable cryptography and interoperable clients are complementary goals, not substitutes for security review. No system is invulnerable; claims must follow evidence.
+
+| Project | Responsibility |
+| --- | --- |
+| NULLADIT Core | Proprietary protocol and node operations; private repository |
+| [NOMC](https://github.com/apesoft-official/nulladit-opensource-messenger-client) | Public messenger clients, device installers and independent web/app builds |
+| [NODSEL](https://github.com/apesoft-official/nulladit-deployed-open-source-encryption-logic) | Public transparency for actual deployed encryption revisions |
+| [PELAVIUM](https://github.com/apesoft-official/nulladit-pelavium) | Experimental privacy research, not deployed |
+
+Developed by **Apesoft Canada** · **Inviolable Conversations**
