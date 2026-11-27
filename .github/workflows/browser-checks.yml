@@ -20,9 +20,12 @@ jobs:
       - run: npx playwright install --with-deps chromium
       - run: |
           npm run preview -- --port 4173 > /tmp/nulladit-preview.log 2>&1 &
-          for i in $(seq 1 30); do curl -fsS http://127.0.0.1:4173/ >/dev/null && break; sleep 1; done
+          npm run preview -- --port 8765 > /tmp/nulladit-local-preview.log 2>&1 &
+          for i in $(seq 1 30); do curl -fsS http://127.0.0.1:4173/ >/dev/null && curl -fsS http://127.0.0.1:8765/ >/dev/null && break; sleep 1; done
           NULLADIT_TEST_WALLET=metamask node tests/browser-wallet-smoke.mjs
           NULLADIT_TEST_WALLET=coinbase node tests/browser-wallet-smoke.mjs
+          NULLADIT_TEST_WALLET=metamask node tests/browser-wallet-startup-smoke.mjs
+          NULLADIT_TEST_WALLET=coinbase node tests/browser-wallet-startup-smoke.mjs
       - name: Package tested public website
         run: |
           test -f dist/index.html

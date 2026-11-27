@@ -18,3 +18,9 @@ export function selectProvider(kind, injected=window.ethereum, entries=announced
   if(matches.size!==1)throw Error(matches.size?'Multiple matching wallets detected. Disable duplicates and retry.':'Selected wallet extension not detected. Install or enable it in Chrome, then reload.');
   return [...matches][0];
 }
+
+export function availableWalletKinds(){
+  return ['metamask','coinbase'].filter(kind=>{
+    try { selectProvider(kind); return true; } catch { return false; }
+  });
+}
