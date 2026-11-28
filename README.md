@@ -28,7 +28,7 @@ Privacy is not a privilege conferred by an intermediary. NULLADIT seeks to make 
 | [PELAVIUM](https://github.com/apesoft-official/nulladit-pelavium) | Experimental privacy research, not deployed |
 
 
-Aurora Covenant is only a proposal; see [AURORA-COVENANT.md](AURORA-COVENANT.md) for the client privilege boundary.
+Aurora graph deployment was reported on November 27, 2026, without verified production integration; see [AURORA-COVENANT.md](AURORA-COVENANT.md) for the client privilege boundary.
 
 Developed by **Apesoft Canada** · **Inviolable Conversations**
 
@@ -46,4 +46,6 @@ See the [NULL22 Representation and Node Service Compensation policy](TOKEN-REPRE
 
 ## NSELCBA client boundary
 
-The Node Service Exchange Lawful Canadian Barter Attestation (NSELCBA) is a separate, research-only node-operator attestation. It is not part of NOMC sign-in, message delivery, recipient access, or client installation. See [the client compatibility boundary](docs/NSELCBA-COMPATIBILITY.md).
+The Node Service Exchange Lawful Canadian Barter Attestation (NSELCBA) is a separate, research-only node-operator attestation. A standalone deployment was reported on November 28, 2026, without verified production integration. It is not part of NOMC sign-in, message delivery, recipient access, or client installation. See [the client compatibility boundary](docs/NSELCBA-COMPATIBILITY.md).
+
+See [the consolidated deployment and whitepaper bulletin](WHITEPAPER-DEPLOYMENT-UPDATE-2026-11-28.md) for recorded addresses and evidence limitations. No mining or production activation is implied.
