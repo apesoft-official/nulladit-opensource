@@ -60,7 +60,7 @@ await page.route('https://node.nulladit.org/**',async route=>{
   await route.fulfill({json:result,headers:{'Access-Control-Allow-Origin':'http://127.0.0.1:4173','Access-Control-Allow-Credentials':'true'}});
 });
 try{
-  await page.goto('http://127.0.0.1:4173');
+  await page.goto('http://127.0.0.1:4173/?client=1');
   await page.locator('#wallet-choice').selectOption(kind);
   await page.locator('#connect-and-authenticate').click();
   await page.locator('[data-tab=contacts]').waitFor();

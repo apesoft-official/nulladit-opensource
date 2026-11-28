@@ -75,7 +75,7 @@ async function runStartupFlow({ remembered }) {
   });
 
   try {
-    await page.goto('http://127.0.0.1:8765/');
+    await page.goto('http://127.0.0.1:8765/?client=1');
     if (!remembered) {
       await page.getByText(/More than one wallet is available/).waitFor();
       await page.locator('#wallet-choice').selectOption(kind);
