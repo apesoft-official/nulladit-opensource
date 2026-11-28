@@ -1,7 +1,9 @@
 name: Browser build and local tools checks
 on:
   push:
-    branches: [preview/functional-interface]
+    branches: [preview/functional-interface, "deploy/**"]
+  pull_request:
+    branches: [main]
 permissions:
   contents: read
 jobs:
