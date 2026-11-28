@@ -42,3 +42,8 @@ Read the [Doctrine of Evidentiary Restraint](VESTIGIUM-PHILOSOPHY.md). **Prove t
 ## NULL22 representation and node rewards
 
 See the [NULL22 Representation and Node Service Compensation policy](TOKEN-REPRESENTATION-AND-NODE-REWARDS.md). It records Apesoft's representation limits and the proposed opt-in Proof-of-Service reward standard; it does not determine legal classification or replace applicable valuation and reporting rules.
+
+
+## NSELCBA client boundary
+
+The Node Service Exchange Lawful Canadian Barter Attestation (NSELCBA) is a separate, research-only node-operator attestation. It is not part of NOMC sign-in, message delivery, recipient access, or client installation. See [the client compatibility boundary](docs/NSELCBA-COMPATIBILITY.md).
