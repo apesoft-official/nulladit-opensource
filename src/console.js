@@ -1,0 +1,884 @@
+import { availableWalletKinds, selectProvider } from './wallet-selection.js';
+import './console.css';
+import { whitelistView, walletReadsView, bindLocalTools, resetLocalTools } from './local-tools.js';
+import { messengerView, bindMessenger, resetMessenger } from './messenger.js';
+import {
+  authenticateWallet,
+  generateNameOffer,
+  registerTesterAccount,
+  revokeSession, revokeSetupSession
+} from './session-auth.js';
+
+const firstWords = [
+  'Aurora', 'Birch', 'Boreal', 'Cedar', 'Copper',
+  'Frost', 'Granite', 'Maple', 'Misty', 'Northern',
+  'Pine', 'Prairie', 'River', 'Rocky', 'Silver',
+  'Spruce', 'Timber', 'Tundra', 'Wild', 'Winter'
+];
+
+const secondWords = [
+  'Bear', 'Beaver', 'Caribou', 'Creek', 'Falcon',
+  'Harbour', 'Lake', 'Loon', 'Moose', 'Otter',
+  'Owl', 'Pines', 'Raven', 'Ridge', 'River',
+  'Trail', 'Valley', 'Wolf', 'Woods', 'Yukon'
+];
+
+
+const LOCAL_OPERATOR_MODE = location.protocol === 'http:' && location.hostname === '127.0.0.1' && location.port === '8765';
+let localHealthAutoCheckStarted = false;
+
+function storedWalletKind() {
+  try {
+    const value = localStorage.getItem('nulladit.wallet-kind');
+    return value === 'metamask' || value === 'coinbase' ? value : '';
+  } catch {
+    return '';
+  }
+}
+
+let localWalletAutoPromptStarted = false;
+let waitingForLocalWalletChoice = false;
+let localMessagingAuthAutoStarted = false;
+
+const state = {
+  tab: 'messages',
+  candidate: 'Cedar Loon 4827',
+  selectedNode: null,
+  autoSelect: true,
+  strictRelays: true,
+  wallet: null,
+  walletProvider: null,
+  walletKind: storedWalletKind(),
+  walletError: '',
+  session: null,
+  identity: null,
+  sessionExpires: null,
+  authBusy: false,
+  needsRegistration: false,
+  setupToken: null,
+  setupExpires: null,
+  nameOffer: null,
+  showAccountSetup: false,
+  localHealth: null,
+  localHealthBusy: false,
+};
+
+if (LOCAL_OPERATOR_MODE) state.tab = 'my-node';
+
+const nav = [
+  ['messages', 'Messages'],
+  ['contacts', 'Whitelist'],
+  ['my-node', 'My Node'],
+  ['active-nodes', 'Active Nodes'],
+  ['wallet', 'Wallet'],
+  ['updates', 'Updates'],
+  ['governance', 'PoS Proposals & Voting'],
+  ['settings', 'Settings'],
+];
+
+const nodes = [
+  {
+    id: 'founding-relay-001',
+    name: 'Apesoft Relay 001',
+    status: 'Awaiting live health check',
+    receipts: 0,
+    flagged: false,
+  },
+  {
+    id: 'founding-relay-002',
+    name: 'Apesoft Relay 002',
+    status: 'Awaiting live health check',
+    receipts: 0,
+    flagged: false,
+  },
+];
+
+function escapeHTML(value) {
+  return String(value).replace(/[&<>"']/g, (char) => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;',
+    '"': '&quot;', "'": '&#39;'
+  })[char]);
+}
+
+function logo() {
+  return `
+    <div class="logo-mark" aria-label="NULLADIT loon speech-bubble logo">
+      <img src="/nulladit-loon.png" alt="NULLADIT loon logo">
+    </div>
+  `;
+}
+
+function statusPill(text, tone = 'safe') {
+  return `<span class="status-pill ${tone}">${escapeHTML(text)}</span>`;
+}
+
+function messagesView() {
+  if (state.session) return messengerView(state, escapeHTML);
+  return '<div class="content-page"><h2>Messages</h2><article class="card"><h3>Messaging unavailable</h3><p>Connect to the node and authenticate your account to access encrypted conversations. No messages are loaded in local mode.</p></article></div>';
+}
+
+function myNodeView() {
+  return `
+    <div class="content-page">
+      <div class="page-title">
+        <div>
+          <p class="eyebrow">Operator console</p>
+          <h2>My Node</h2>
+        </div>
+        ${statusPill(state.localHealth ? 'Local runtime reachable' : 'Not verified', state.localHealth ? 'safe' : 'neutral')}
+      </div>
+
+      <div class="card-grid two">
+        <article class="card">
+          <h3>Node status</h3>
+          <div class="metric">${state.localHealth ? "Online locally" : "Not checked"}</div>
+          <p>
+            ${state.localHealth ? 'Local node: ' + escapeHTML(state.localHealth) : 'This dashboard checks the local node started by the NULLADIT launcher. It does not start another process. Peer enrollment and mining are unavailable in this preview.'}
+          </p>
+          <button id="local-health" ${state.localHealthBusy?'disabled':''}>${state.localHealthBusy ? 'Checking node…' : 'Refresh node status'}</button>
+          <small>Mining is unavailable and remains paused.</small>
+        </article>
+
+        <article class="card">
+          <h3>Operator support</h3>
+          <p>
+            Verified working node operators may contact <strong>apesoft.eth</strong> through dedicated support for setup assistance,
+            a support ticket, or to report malicious wallet activity
+            observed through your node.
+          </p>
+          <button disabled>Open operator support</button><small>Working-node eligibility verification and encrypted support transport are not connected yet. Private chat permissions are unchanged.</small>
+          <small>
+            Reports never automatically blacklist or punish a wallet.
+          </small>
+        </article>
+      </div>
+
+      <article class="card">
+        <h3>Diagnostics sharing</h3>
+        <p>
+          Diagnostic logs are never sent automatically. Message content
+          and encryption keys are never included.
+        </p>
+        <label class="toggle-row">
+          <input type="checkbox" disabled>
+          <span>Share selected diagnostics with a support ticket</span>
+        </label>
+      </article>
+    </div>
+  `;
+}
+
+function activeNodesView() {
+  return `
+    <div class="content-page">
+      <div class="page-title">
+        <div>
+          <p class="eyebrow">Relay selection</p>
+          <h2>Active Nodes</h2>
+        </div>
+        ${statusPill('Health checks pending', 'warning')}
+      </div>
+
+      <article class="card selection-card">
+        <label class="toggle-row">
+          <input id="auto-select" type="checkbox" disabled
+            ${state.autoSelect ? 'checked' : ''}>
+          <span>
+            <strong>Choose the most reliable eligible node</strong>
+            <small>
+              Selection will use verified delivery receipts and your
+              safety parameters.
+            </small>
+          </span>
+        </label>
+      </article>
+
+      <div class="node-list">
+        ${nodes.map((node) => `
+          <article class="node-card">
+            <div>
+              <div class="node-title">
+                <h3>${escapeHTML(node.name)}</h3>
+                ${node.flagged
+                  ? statusPill('Mandated update installed', 'danger')
+                  : statusPill('Access flag not verified', 'warning')}
+              </div>
+              <p>${escapeHTML(node.status)}</p>
+              <small>
+                ${node.receipts} locally verified delivery receipts
+              </small>
+            </div>
+            <button disabled>
+              Discovery unavailable
+            </button>
+          </article>
+        `).join('')}
+      </div>
+    </div>
+  `;
+}
+
+function walletView() {
+  return `
+    <div class="content-page">
+      <div class="page-title">
+        <div>
+          <p class="eyebrow">ZKsync Era · Chain 324</p>
+          <h2>Wallet</h2>
+        </div>
+        ${state.wallet
+  ? statusPill('Connected · Chain 324', 'safe')
+  : statusPill('Disconnected', 'neutral')}
+      </div>
+
+      <article class="card">
+        <h3>Browser wallet</h3>
+        <p id="wallet-feedback">
+          ${state.wallet
+            ? `Connected: ${escapeHTML(state.wallet)}`
+            : escapeHTML(
+                state.walletError ||
+                'Connect the wallet that will own this account.'
+              )}
+        </p>
+        <button id="connect-wallet" ${state.wallet ? "disabled" : ""}>
+          ${state.wallet ? 'Wallet connected' : 'Connect wallet'}
+        </button>
+        <small>
+          Console access requires a fresh wallet signature; no payment or network authorization is implied.
+        </small>
+      </article>
+
+      <div class="card-grid three">
+        <article class="card balance">
+          <span>$NULL22</span><strong>—</strong><small>See live balances below</small>
+        </article>
+        <article class="card balance">
+          <span>Retirement Bonds</span><strong>—</strong><small>Not connected</small>
+        </article>
+        <article class="card balance">
+          <span>Unclaimed node earnings</span><strong>—</strong>
+          <button disabled>Claim</button>
+        </article>
+      </div>
+
+      ${walletReadsView(state, escapeHTML)}
+      <article class="card notice">
+        <h3>Transfer-tax notice</h3>
+        <p>
+          NULLADIT intends a 1% transfer tax payable to Apesoft Canada
+          to help fund security updates. The console must confirm actual
+          contract enforcement before displaying the tax as active.
+        </p>
+      </article>
+    </div>
+  `;
+}
+
+function updatesView() {
+  return `
+    <div class="content-page">
+      <div class="page-title">
+        <div>
+          <p class="eyebrow">Operator choice</p>
+          <h2>Proposed Updates</h2>
+        </div>
+        ${statusPill('Proposal service unavailable', 'warning')}
+      </div>
+
+      <article class="card">
+        <h3>Update availability not verified</h3>
+        <p>
+          A future proposal will show its version, proof-of-service scope,
+          three-constituency approval record, source fingerprint, and any
+          government-mandated or access-affecting flag.
+        </p>
+        <div class="button-row">
+          <button disabled>Accept with wallet signature</button>
+          <button class="secondary" disabled>Reject</button>
+        </div>
+      </article>
+
+      <article class="card warning-card">
+        <h3>Node operators retain the choice</h3>
+        <p>
+          Flagged updates remain visible. Users may exclude nodes that
+          installed a government-mandated access change.
+        </p>
+      </article>
+    </div>
+
+  `;
+}
+
+function governanceView() {
+  return `<div class="content-page">
+    <div class="page-title"><div><p class="eyebrow">NULL22 · Network governance</p><h2>Proof-of-Service Proposals &amp; Voting</h2></div>${statusPill('Preview · voting unavailable','warning')}</div>
+    <article class="card"><h3>Proposal registry</h3><p>No live proposal registry is connected. Proposal availability, eligibility and results cannot yet be verified. No ballots or signatures are collected by this preview.</p><small>Only Apesoft Canada may propose proof-standard upgrades.</small></article>
+    <div class="card-grid three">
+      <article class="card balance"><span>Apesoft Canada</span><strong>⅓</strong><small>Corporate vote only; optional abstention</small></article>
+      <article class="card balance"><span>Independent operators</span><strong>⅓</strong><small>One vote per verified operator · 90 days of service</small></article>
+      <article class="card balance"><span>Independent NULL22 holders</span><strong>⅓</strong><small>Proportional holdings · 30-day historical snapshot</small></article>
+    </div>
+    <article class="card"><h3>Voting rules</h3><p>Two-thirds approval of active voting weight; 50% participation in each independent constituency. When Apesoft abstains or does not vote, operators and token holders each carry half of active voting weight. Apesoft-controlled nodes and holdings cannot vote in either independent bloc.</p><p>30-day ballot period · seven-day execution delay · seven-day historical proof migration.</p></article>
+    <article class="card"><h3>Cast your vote</h3><p>Wallet connection does not establish governance eligibility. A verified election, constituency and snapshot proof are required.</p><div class="button-row"><button disabled>Vote yes</button><button class="secondary" disabled>Vote no</button></div><small>No vote will be stored, signed or submitted in preview mode.</small></article>
+    <article class="card warning-card"><h3>Scope and operator choice</h3><p>Proof-standard proposals do not confer adjudication or confiscation powers. Operators choose whether to install updates; obsolete standards may cease to qualify for new rewards. Previously authorized rewards remain protected.</p></article>
+  </div>`;
+}
+
+function settingsView() {
+  return `
+    <div class="content-page">
+      <div class="page-title">
+        <div>
+          <p class="eyebrow">Account and privacy</p>
+          <h2>Settings</h2>
+        </div>
+      </div>
+
+      <article class="card name-card">
+        <div>
+          <p class="eyebrow">Permanent network name</p>
+          <h3>${escapeHTML(state.identity || 'Not authenticated')}</h3>
+          <p>
+            Generate another name until you find one you like.
+            Once wallet-signed and locked, it can never be changed,
+            transferred, or used by another account or node.
+          </p>
+        </div>
+        <div class="button-row">
+          <button id="generate-name" class="secondary" disabled>
+            Generate new name
+          </button>
+          <button id="lock-name" disabled>Lock with wallet signature</button>
+        </div>
+        <small id="name-feedback">
+          ${state.session ? 'Wallet-bound preview account' : 'Network account not verified'}
+        </small>
+      </article>
+
+      <article class="card">
+        <label class="toggle-row">
+          <input id="strict-relays" type="checkbox" disabled
+            ${state.strictRelays ? 'checked' : ''}>
+          <span>
+            <strong>Exclude access-flagged or unknown nodes</strong>
+            <small>No silent fallback outside these parameters.</small>
+          </span>
+        </label>
+      </article>
+    </div>
+  `;
+}
+
+function view() {
+  if (state.tab === 'contacts') return whitelistView(state, escapeHTML);
+  if (state.tab === 'messages') return messagesView();
+  if (state.tab === 'my-node') return myNodeView();
+  if (state.tab === 'active-nodes') return activeNodesView();
+  if (state.tab === 'wallet') return walletView();
+  if (state.tab === 'updates') return updatesView();
+  if (state.tab === 'governance') return governanceView();
+  return settingsView();
+}
+
+function candidate() {
+  const first =
+    firstWords[Math.floor(Math.random() * firstWords.length)];
+  const second =
+    secondWords[Math.floor(Math.random() * secondWords.length)];
+  const number = 1000 + Math.floor(Math.random() * 9000);
+  return `${first} ${second} ${number}`;
+}
+
+const boundProviders = new WeakSet();
+let authGeneration = 0;
+let sessionExpiryTimer = null;
+
+function accountSetupGate() {
+  return `
+    <main class="auth-page">
+      <section class="auth-card account-setup-card">
+        ${logo()}
+        <p class="eyebrow">Permanent network name</p>
+        <h1>${escapeHTML(state.candidate)}</h1>
+        <p class="auth-copy">
+          Generate another name until you find one you like.
+          Once locked, it is permanent and globally reserved.
+        </p>
+        <button id="generate-setup-name" class="secondary">
+          Generate new name
+        </button>
+        <button id="lock-setup-name">
+          Lock name and create account
+        </button>
+        <p class="auth-status">
+          Wallet verified · candidate not locked
+        </p>
+        <small>
+          Authorized tester wallets pay no setup fee and receive no
+          special authority or permissions.
+        </small>
+      </section>
+    </main>
+  `;
+}
+
+function authenticationGate() {
+  if (state.showAccountSetup) return accountSetupGate();
+  const status = state.authBusy
+    ? 'Check your wallet to continue.'
+    : state.needsRegistration
+      ? 'Wallet verified. This browser needs account setup.'
+      : state.walletError ||
+        'Connect your ZKsync Era wallet to open the console.';
+
+  return `
+    <main class="auth-page">
+      <section class="auth-card">
+        ${logo()}
+        <p class="eyebrow">Inviolable conversations</p>
+        <h1>NULLADIT</h1>
+        <p class="auth-copy">
+          The installed controller asks your selected wallet for a one-time signature to unlock this browser.
+          You must approve it in your wallet. No transaction or payment is requested; messaging sign-in needs
+          a separate, fresh challenge from the live gateway.
+        </p>
+        <label for="wallet-choice">Choose your wallet</label>
+        <select id="wallet-choice" ${state.authBusy?'disabled':''}>
+          <option value="" disabled ${!state.walletKind?'selected':''}>Choose a wallet</option>
+          <option value="metamask" ${state.walletKind==='metamask'?'selected':''}>MetaMask</option>
+          <option value="coinbase" ${state.walletKind==='coinbase'?'selected':''}>Coinbase Wallet</option>
+        </select>
+        <button id="connect-and-authenticate"
+          ${state.authBusy || state.needsRegistration ? 'disabled' : ''}>
+          ${state.authBusy ? 'Waiting for wallet…' : 'Connect selected wallet'}
+        </button>
+        <p class="auth-status" role="status">${escapeHTML(status)}</p>
+        ${state.needsRegistration ? `
+          <button id="begin-account-setup" class="secondary" disabled>
+            Account setup is the next sweep
+          </button>
+        ` : ''}
+        <small>
+          Session ends on refresh, connection loss, wallet disconnect,
+          account change, chain change, or server expiry.
+        </small>
+      </section>
+    </main>
+  `;
+}
+
+async function clearSession(reason, revoke = true) {
+  const token = state.session;
+  const setupToken = state.setupToken;
+  authGeneration++;
+  resetMessenger();
+  resetLocalTools();
+  state.setupToken = null;
+  state.setupExpires = null;
+  state.nameOffer = null;
+  state.showAccountSetup = false;
+  state.needsRegistration = false;
+
+  state.session = null;
+  state.identity = null;
+  state.sessionExpires = null;
+  state.wallet = null;
+  state.walletProvider = null;
+  state.tab = 'messages';
+  state.walletError = reason || 'Session ended.';
+  state.authBusy = false;
+
+  if (sessionExpiryTimer) {
+    clearTimeout(sessionExpiryTimer);
+    sessionExpiryTimer = null;
+  }
+
+  renderConsole();
+
+  if (revoke && token && navigator.onLine) {
+    await revokeSession(token);
+  }
+  if (revoke && setupToken && navigator.onLine) await revokeSetupSession(setupToken);
+}
+
+function bindProviderEvents(provider) {
+  if (boundProviders.has(provider) || !provider?.on) return;
+  boundProviders.add(provider);
+
+  provider.on('accountsChanged', () => {
+    if(state.walletProvider!==provider)return;
+    clearSession('Wallet account changed. Sign in again.');
+  });
+  provider.on('chainChanged', (chainHex) => {
+    if (state.walletProvider===provider && Number.parseInt(chainHex, 16) !== 324) {
+      clearSession('Wallet left ZKsync Era. Sign in again.');
+    }
+  });
+  provider.on('disconnect', () => {
+    if(state.walletProvider===provider)clearSession('Wallet disconnected.');
+  });
+}
+
+function scheduleSessionExpiry(expires) {
+  if (sessionExpiryTimer) clearTimeout(sessionExpiryTimer);
+
+  const delay = Math.max(0, (expires * 1000) - Date.now());
+  sessionExpiryTimer = setTimeout(() => {
+    clearSession('Session expired. Sign in again.');
+  }, delay);
+}
+
+async function connectBrowserWallet() {
+  const attempt = ++authGeneration;
+  state.walletError = '';
+  state.needsRegistration = false;
+  state.authBusy = true;
+  renderConsole();
+
+  try {
+    if (!['metamask', 'coinbase'].includes(state.walletKind)) {
+      throw new Error('Choose MetaMask or Coinbase Wallet first.');
+    }
+    const provider = selectProvider(state.walletKind);
+    if (!provider?.request) {
+      throw new Error('Compatible browser wallet not detected');
+    }
+
+    let chainHex = await provider.request({
+      method: 'eth_chainId'
+    });
+    let chainId = Number.parseInt(chainHex, 16);
+
+    if (chainId !== 324) {
+      await provider.request({
+        method: 'wallet_switchEthereumChain',
+        params: [{ chainId: '0x144' }]
+      });
+      chainHex = await provider.request({
+        method: 'eth_chainId'
+      });
+      chainId = Number.parseInt(chainHex, 16);
+    }
+
+    if (chainId !== 324) {
+      throw new Error('ZKsync Era network switch was not confirmed');
+    }
+
+    const accounts = await provider.request({
+      method: 'eth_requestAccounts'
+    });
+    const wallet = accounts?.[0];
+
+    if (!/^0x[a-fA-F0-9]{40}$/.test(wallet || '')) {
+      throw new Error('Wallet did not provide a valid address');
+    }
+
+    const nonce = Array.from(crypto.getRandomValues(new Uint8Array(32)), b => b.toString(16).padStart(2,'0')).join('');
+    const message = ['NULLADIT Wallet Access','Action: Unlock this browser console','Origin: '+location.origin,'Wallet: '+wallet.toLowerCase(),'Chain ID: 324','Nonce: '+nonce,'No transaction or payment is requested.'].join('\n');
+    const signature = await provider.request({method:'personal_sign',params:[message,wallet]});
+    if (!/^0x[0-9a-fA-F]{130}$/.test(signature || '')) throw new Error('Wallet signature required');
+    const { secp256k1 } = await import('@noble/curves/secp256k1');
+    const { keccak_256 } = await import('@noble/hashes/sha3');
+    const encoder = new TextEncoder();
+    const bytes = encoder.encode(message);
+    const prefix = encoder.encode('\x19Ethereum Signed Message:\n'+bytes.length);
+    const payload = new Uint8Array(prefix.length+bytes.length);
+    payload.set(prefix); payload.set(bytes,prefix.length);
+    const recovery = Number.parseInt(signature.slice(-2),16)-27;
+    if (recovery !== 0 && recovery !== 1) throw new Error('Invalid signature recovery ID');
+    const recovered = secp256k1.Signature.fromCompact(signature.slice(2,-2)).addRecoveryBit(recovery).recoverPublicKey(keccak_256(payload)).toRawBytes(false);
+    const signer = '0x'+Array.from(keccak_256(recovered.slice(1)).slice(-20),b=>b.toString(16).padStart(2,'0')).join('');
+    if (signer !== wallet.toLowerCase()) throw new Error('Wallet signature mismatch');
+    const currentAccounts = await provider.request({method:'eth_accounts'});
+    const currentChain = await provider.request({method:'eth_chainId'});
+    if (currentAccounts?.[0]?.toLowerCase() !== wallet.toLowerCase() || Number.parseInt(currentChain,16) !== 324) throw new Error('Wallet changed during authentication');
+    if (attempt !== authGeneration) return;
+    state.wallet = wallet;
+    state.walletProvider = provider;
+    try { localStorage.setItem('nulladit.wallet-kind', state.walletKind); } catch {}
+    bindProviderEvents(provider);
+    state.walletError = '';
+
+
+  } catch (error) {
+    if (attempt !== authGeneration) return;
+    state.wallet = null;
+    state.walletProvider = null;
+    state.needsRegistration = false;
+    state.showAccountSetup = false;
+    state.walletError =
+      error?.code === 4001
+        ? 'Wallet request cancelled.'
+        : error?.message || 'Wallet authentication failed.';
+  } finally {
+    if (attempt === authGeneration) {
+      state.authBusy = false;
+      renderConsole();
+      if (state.wallet && LOCAL_OPERATOR_MODE && !state.session && !localMessagingAuthAutoStarted) {
+        localMessagingAuthAutoStarted = true;
+        void connectNodeSession();
+      }
+    }
+  }
+}
+
+async function connectNodeSession() {
+  if (!state.wallet || state.session || state.authBusy) return;
+  const attempt = ++authGeneration;
+  const wallet = state.wallet;
+  const provider = state.walletProvider;
+  state.authBusy = true;
+  state.walletError = '';
+  renderConsole();
+  try {
+    const result = await authenticateWallet(provider, wallet);
+    if (attempt !== authGeneration) { if (result.token) await revokeSession(result.token); if (result.setupToken) await revokeSetupSession(result.setupToken); return; }
+
+    if (result.needsRegistration) {
+      state.needsRegistration = true;
+      state.setupToken = result.setupToken;
+      state.setupExpires = result.setupExpires;
+      const offer = await generateNameOffer(result.setupToken);
+      if (attempt !== authGeneration) return;
+      state.candidate = offer.network_name;
+      state.nameOffer = offer.offer_token;
+      state.showAccountSetup = true;
+      scheduleSessionExpiry(result.setupExpires);
+      state.walletError = '';
+      return;
+    }
+
+    state.session = result.token;
+    state.identity = result.identity;
+    state.sessionExpires = result.expires;
+    scheduleSessionExpiry(result.expires);
+
+  } catch (error) {
+    if (attempt !== authGeneration) return;
+    const setupToken = state.setupToken;
+    state.setupToken = null;
+    state.nameOffer = null;
+    state.needsRegistration = false;
+    state.showAccountSetup = false;
+    state.walletError = 'Messaging sign-in incomplete: ' + (error?.message || 'Connection failed') + '. No messaging signature was requested without a valid gateway challenge. Local wallet access remains available; retry when the gateway is online.';
+    if (setupToken) void revokeSetupSession(setupToken);
+  } finally {
+    if (attempt === authGeneration) { state.authBusy = false; renderConsole(); }
+  }
+}
+
+window.addEventListener('offline', () => {
+  authGeneration++; resetMessenger(); state.session = null; state.identity = null; state.sessionExpires = null; state.setupToken = null; state.showAccountSetup = false; state.needsRegistration = false; state.authBusy = false; state.walletError = 'Internet offline. Local tools remain available.'; if (sessionExpiryTimer) clearTimeout(sessionExpiryTimer); renderConsole();
+});
+
+
+async function refreshLocalNodeHealth() {
+  if (state.localHealthBusy || !LOCAL_OPERATOR_MODE) return;
+  state.localHealthBusy = true;
+  state.localHealth = null;
+  const attempt = authGeneration;
+  renderConsole();
+  try {
+    const response = await fetch('/health', {
+      cache: 'no-store', redirect: 'error', signal: AbortSignal.timeout(3000)
+    });
+    const data = await response.json();
+    if (response.ok && data.service === 'NULLADIT' && data.status === 'local' &&
+        /^[0-9a-f]{64}$/.test(data.node) && attempt === authGeneration) {
+      state.localHealth = data.node;
+    }
+  } catch {}
+  finally {
+    state.localHealthBusy = false;
+    renderConsole();
+  }
+}
+
+function bind() {
+  document.querySelector('#local-health')?.addEventListener('click', refreshLocalNodeHealth);
+  bindLocalTools(state, renderConsole);
+  if (state.session) bindMessenger(state, renderConsole);
+  document.querySelector('#connect-node')?.addEventListener('click', connectNodeSession);
+  document.querySelector('#logout')?.addEventListener('click', () => clearSession('Signed out.'));
+  document.querySelector('#connect-wallet')
+    ?.addEventListener('click', connectBrowserWallet);
+  document.querySelectorAll('[data-tab]').forEach((button) => {
+    button.addEventListener('click', () => {
+      state.tab = button.dataset.tab;
+      renderConsole();
+    });
+  });
+
+
+  document.querySelector('#generate-name')
+    ?.addEventListener('click', () => {
+      state.candidate = candidate();
+      renderConsole();
+    });
+
+  document.querySelector('#lock-name')
+    ?.addEventListener('click', () => {
+      document.querySelector('#name-feedback').textContent =
+        'Connect the wallet that will own this account before locking.';
+    });
+
+  document.querySelector('#auto-select')
+    ?.addEventListener('change', (event) => {
+      state.autoSelect = event.target.checked;
+    });
+
+  document.querySelector('#strict-relays')
+    ?.addEventListener('change', (event) => {
+      state.strictRelays = event.target.checked;
+    });
+
+  document.querySelectorAll('[data-node]').forEach((button) => {
+    button.addEventListener('click', () => {
+      state.selectedNode = button.dataset.node;
+      button.textContent = 'Awaiting secure connection';
+      button.disabled = true;
+    });
+  });
+}
+
+function startLocalWalletAuth() {
+  if (!LOCAL_OPERATOR_MODE || localWalletAutoPromptStarted || state.wallet || state.authBusy) return;
+  localWalletAutoPromptStarted = true;
+  window.setTimeout(() => {
+    if (state.wallet || state.authBusy) return;
+    const available = availableWalletKinds();
+    if (state.walletKind && available.includes(state.walletKind)) {
+      // Honor the wallet the operator chose on an earlier launch.
+    } else if (available.length === 1) {
+      state.walletKind = available[0];
+    } else {
+      waitingForLocalWalletChoice = true;
+      state.walletError = available.length
+        ? 'More than one wallet is available. Choose MetaMask or Coinbase Wallet; the selected wallet will ask you to approve a gas-free login signature.'
+        : 'No supported wallet was detected. Install or enable MetaMask or Coinbase Wallet, then choose it here. No signature or transaction has been requested.';
+      renderConsole();
+      return;
+    }
+    try { localStorage.setItem('nulladit.wallet-kind', state.walletKind); } catch {}
+    void connectBrowserWallet();
+  }, 900);
+}
+
+export function renderConsole() {
+  if (!state.wallet || state.showAccountSetup) {
+    document.querySelector('#app').innerHTML = authenticationGate();
+    document.querySelector('#wallet-choice')?.addEventListener('change', e => {
+      state.walletKind = e.target.value;
+      try { localStorage.setItem('nulladit.wallet-kind', state.walletKind); } catch {}
+      if (LOCAL_OPERATOR_MODE && waitingForLocalWalletChoice && state.walletKind) {
+        waitingForLocalWalletChoice = false;
+        void connectBrowserWallet();
+      }
+    });
+    document.querySelector('#connect-and-authenticate')
+      ?.addEventListener('click', connectBrowserWallet);
+
+    document.querySelector('#generate-setup-name')
+      ?.addEventListener('click', async () => {
+        try {
+          const attempt = authGeneration;
+          const button = document.querySelector('#generate-setup-name');
+          button.disabled = true;
+          document.querySelector('#lock-setup-name').disabled = true;
+          const offer = await generateNameOffer(state.setupToken);
+          if (attempt !== authGeneration) return;
+          state.candidate = offer.network_name;
+          state.nameOffer = offer.offer_token;
+          renderConsole();
+        } catch (error) {
+          state.walletError =
+            error?.message || 'Name generation failed.';
+          await clearSession(state.walletError);
+        }
+      });
+
+    document.querySelector('#lock-setup-name')
+      ?.addEventListener('click', async () => {
+        const button = document.querySelector('#lock-setup-name');
+        button.disabled = true;
+        button.textContent = 'Check your wallet…';
+
+        document.querySelector('#generate-setup-name').disabled = true;
+        const attempt = authGeneration;
+        try {
+          const result = await registerTesterAccount({
+            provider: state.walletProvider,
+            wallet: state.wallet,
+            setupToken: state.setupToken,
+            offerToken: state.nameOffer,
+            networkName: state.candidate,
+          });
+
+          if (attempt !== authGeneration) { await revokeSession(result.session.token); return; }
+          state.session = result.session.token;
+          state.identity = result.identity;
+          state.sessionExpires = result.session.expires;
+          state.needsRegistration = false;
+          state.showAccountSetup = false;
+          state.setupToken = null;
+          state.nameOffer = null;
+          scheduleSessionExpiry(result.session.expires);
+          renderConsole();
+        } catch (error) {
+          if (attempt !== authGeneration) return;
+          state.walletError =
+            error?.code === 4001
+              ? 'Permanent-name signature cancelled.'
+              : error?.message || 'Account setup failed.';
+          state.showAccountSetup = false;
+          state.needsRegistration = false;
+          renderConsole();
+        }
+      });
+    if (LOCAL_OPERATOR_MODE) startLocalWalletAuth();
+    return;
+  }
+  document.querySelector('#app').innerHTML = `
+    <div class="console-shell">
+      <aside class="console-sidebar">
+        <div class="brand">
+          ${logo()}
+          <div>
+            <div class="brand-name">NULLADIT</div>
+            <div class="brand-tag">INVIOLABLE CONVERSATIONS</div>
+          </div>
+        </div>
+
+        <nav>
+          ${(LOCAL_OPERATOR_MODE ? nav.filter(([id]) => id === 'my-node') : nav).map(([id, label]) => `
+            <button data-tab="${id}"
+              class="${state.tab === id ? 'active' : ''}" aria-current="${state.tab === id ? 'page' : 'false'}">
+              <span>${escapeHTML(label)}</span>
+            </button>
+          `).join('')}
+        </nav>
+
+        <div class="sidebar-foot">
+          ${statusPill('Mining paused', 'warning')}
+          <small>Experimental preview · decentralized network not live</small><button id="logout">Sign out</button>
+        </div>
+      </aside>
+
+      <main class="console-main">
+        <div class="top-strip">
+          <span>${LOCAL_OPERATOR_MODE ? 'Local node operator view · loopback only' : state.session ? 'Network session active' : 'Local wallet mode · network not authenticated'}</span>
+          <strong>Do not use for sensitive communications yet</strong>
+        </div>
+        ${!state.session ? `<section class="content-page"><article class="card"><h3>Local wallet mode</h3><p>Your wallet has unlocked this device only. To send or receive messages, the messaging server must issue a fresh, expiring challenge and verify your wallet signature. This is a sign-in, not a transaction, and costs no gas. If the server is unreachable, no signature is requested and messaging stays locked.</p><button id="connect-node" ${state.authBusy ? 'disabled' : ''}>${state.authBusy ? 'Waiting for server challenge or wallet approval…' : 'Request messaging sign-in challenge'}</button><p role="status">${escapeHTML(state.walletError)}</p></article></section>` : ''}
+        ${view()}
+      </main>
+    </div>
+  `;
+  bind();
+  if (LOCAL_OPERATOR_MODE && !localHealthAutoCheckStarted) {
+    localHealthAutoCheckStarted = true;
+    void refreshLocalNodeHealth();
+  }
+}
